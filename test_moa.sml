@@ -1,4 +1,4 @@
-(* Simple unit tests for the APL operations *)
+(* Simple unit tests for the MOA operations *)
 
 local
   val is_debug = false
@@ -9,9 +9,9 @@ end
 
 open UTest
 
-val () = UTest.start "test_apl.sml" "structure Apl"
+val () = UTest.start "test_moa.sml" "structure Moa"
 
-structure A = Apl
+structure A = Moa
 
 val pr = A.pp (Int.toString)
 fun tsta s f =

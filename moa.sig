@@ -1,4 +1,4 @@
-signature APL = sig
+signature MOA = sig
   type 'a t
 
   val zilde   : unit -> 'a t

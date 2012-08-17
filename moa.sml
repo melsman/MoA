@@ -1,4 +1,4 @@
-functor APL(A: VEC) :> APL = struct
+functor Moa(A: VEC) :> MOA = struct
 
   type 'a t = int list * 'a A.t
 
@@ -116,5 +116,5 @@ functor APL(A: VEC) :> APL = struct
   fun eq beq (a,b) = shape a = shape b andalso A.eq beq (snd a, snd b)
 end
 
-structure Apl = APL(Fvec)
-(*structure Apl = APL(ListVec)*)
+structure Moa = Moa(Fvec)
+(*structure Moa = Moa(ListVec)*)
