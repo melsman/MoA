@@ -1,0 +1,9 @@
+local
+   $(SML_LIB)/basis/basis.mlb
+in
+   vec/vec.mlb
+   moa.sig
+   moa.sml
+   utest/utest.mlb
+   test_moa.sml
+end
