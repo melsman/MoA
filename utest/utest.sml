@@ -16,6 +16,14 @@ structure UTest :> UTEST = struct
   fun tst0 s s' = print (s ^ "    \t" ^ s' ^ "\n")
   fun tstopt s f = tst0 s (check f)
   fun tst s f = tst0 s (check (fn x => if f() then NONE else SOME""))
+
+  fun tsteq (pr,eq) s f =
+      tstopt s (fn () => let val (a,b) = f()
+		         in if eq (a,b) then NONE
+			    else SOME (pr a ^ " not equal to expected value " ^ pr b)
+		         end)
+  val tstint = tsteq (Int.toString, op =)
+  val tststr = tsteq (fn s => s, op =)
   fun all s f xs =
       tst s (fn() => List.all f xs)
       

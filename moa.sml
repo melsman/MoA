@@ -116,5 +116,6 @@ functor Moa(A: VEC) :> MOA = struct
   fun eq beq (a,b) = shape a = shape b andalso A.eq beq (snd a, snd b)
 end
 
-structure Moa = Moa(Fvec)
+(*structure Moa = Moa(Fvec)*)
+structure Moa = Moa(PPvec)
 (*structure Moa = Moa(ListVec)*)

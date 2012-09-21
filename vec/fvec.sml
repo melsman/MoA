@@ -1,4 +1,4 @@
-(* Fusable vectors *)
+(* Pull vectors *)
 
 structure Fvec :> VEC = struct
 
@@ -10,6 +10,8 @@ fun fromList (l:'a list) :  'a t =
     end
 
 fun map f (n,g) = (n, f o g)
+
+fun rev (n,g) = (n,fn i => g(n-i-1))
 
 fun fmap a v = map (fn f => f v) a
 

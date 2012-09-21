@@ -4,8 +4,8 @@ local
 in
    vec.sig
    list_vec.sml
+   ppvec.sml
    fvec.sml
-(*   ../utest/utest.mlb
+   ../utest/utest.mlb
    test_vec.sml
-*)
 end

@@ -20,4 +20,5 @@ signature VEC = sig
   val tabulate : int -> (int -> 'a) -> 'a t
   val sub      : 'a t * int -> 'a
   val memoize  : 'a t -> 'a t
+  val rev      : 'a t -> 'a t
 end
