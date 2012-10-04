@@ -54,14 +54,16 @@ We see that `foldr` returns a monadic value, which we can "run" using
 the `runM` function, which again generates a residual program
 (slightly simplified):
 
-    n49 = 0;
-    for (int n52 = 0; n52 < 10; n52++) {
-        n53 = n49;
-        for (int n55 = 0; n55 < 10; n55++) {
-            n53 += ((9-n52)*(9-n55));
-        }
-        n49 = n53;
+```c
+int n49 = 0;
+for (int n52 = 0; n52 < 10; n52++) {
+    int n53 = n49;
+    for (int n55 = 0; n55 < 10; n55++) {
+        n53 += ((9-n52)*(9-n55));
     }
+    n49 = n53;
+}
+```
 
 After executing the above code, the result is present in variable
 `n49`.
