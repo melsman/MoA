@@ -30,7 +30,9 @@ implementation (`il2.mlb`) supports nesting of vectors and thus,
 nested folds. As an example, lets first construct a matrix containing
 the small multiplification table:
 
-    val mat = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
+```sml
+val mat = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
+```
                                    
 Here the `I` function lifts integers into the vector expression
 language, on which all calculations are performed. The lifting allows
@@ -38,7 +40,9 @@ operations on vector expressions to be residualized into the C-like
 target language. Now, let's write some code for summing up all the
 values in the table:
 
-    val m = foldr (fn (r, a) => foldr (ret o op +) a r) (I 0) mat
+```sml
+val m = foldr (fn (r, a) => foldr (ret o op +) a r) (I 0) mat
+```
 
 Here we see two nested folds, with the outer foldr folding over the
 rows of the matrix with `I 0` as the base value for the
