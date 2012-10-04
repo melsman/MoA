@@ -2,22 +2,27 @@ structure TestILvec = struct
 
 open UTest
 
-val () = start "test_ilvec.sml" "structure ILvec"
+val () = start "test_ilvec2.sml" "structure ILvec (ilvec2.sml)"
 
-open IL ILvec
-open Exp Program infix >>= >> ::=
+open ILvec infix >>= >> ::=
 
 val e1 = tabulate (I 10) (fn x => x)
 val e2 = map (fn x => x + I 2) e1
 val e3 = rev e2
 
-val () = tststr "sum" (fn () => (ILUtil.ppValue(eval(sum e3)), 
-                                 let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2)
-                                 end))
+val () = tststr "foldr_mem" (fn () => 
+                                let val m = memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3')
+                                in (ILUtil.ppValue(eval(runM m)), 
+                                    let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2)
+                                    end)
+                                end)
+
+fun sum v = runM(foldl (ret o op +) (I 0) v)
 
 val () = tststr "dr" (fn () => (ILUtil.ppValue(eval(sum (dr (I 5) e3))), 
                                 let open Int in Int.toString(6+5+4+3+2)
                                 end))
+
 val () = tststr "tk" (fn () => (ILUtil.ppValue(eval(sum (tk (I 2) e3))), 
                                 let open Int in Int.toString(11+10)
                                 end))
@@ -58,16 +63,24 @@ val () = tststr "concat2" (fn () =>
                                  let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45)
                                  end)
                              end)
-(*
-val () = tststr "matsum" (fn () => 
-                             let val e = tabulate (I 10) (fn x => 
-                                             tabulate (I 10) (fn y => x * y))
-                                 val m = foldr (ret o op +) (I 0) e4
-                             in (ILUtil.ppValue(eval(runM m)), 
-                                 let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45)
-                                 end)
-                             end)
-  *)       
+
+val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
+
+fun addall x y f =
+    let open Int
+        fun loop i = if i > y then 0
+                     else f i + loop (i+1)
+    in loop x
+    end
+
+val () =  tststr "mat_sum" (fn () => 
+                                let val m = foldr (fn (r, a) => 
+                                                     foldr (ret o op +) a r) (I 0) m1
+                                in (ILUtil.ppValue(eval(runM m)), 
+                                    let open Int in Int.toString(9*450 div 2)
+                                    (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 = 9*450 div 2 *)
+                                    end)
+                                end)
 
 val () = finish()
 end

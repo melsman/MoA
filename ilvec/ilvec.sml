@@ -52,17 +52,21 @@ local open Exp Program infix >> ::= in
 
   fun foldl f e (n,g) =
       let val a = Name.new (Type.VAR())
+          fun body i =
+              runM (f(g (V i),V a)) a
           val p = a := e >>
-                  For(n, fn i => a := f(g (V i),V a))
+                  For(n, body)
       in (V a,p)
       end
 
   fun foldr f e (n,g) =
       let val a = Name.new (Type.VAR())
           val n0 = Name.new (Type.INT)
+          fun body i =
+              runM (f(g (V n0 - V i),V a)) a
           val p = n0 := n - I 1 >>
                   a := e >>
-                  For(n, fn i => a := f(g (V n0 - V i),V a))
+                  For(n, body)
       in (V a,p)
       end
 

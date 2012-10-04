@@ -30,8 +30,8 @@ signature ILVEC = sig
   val map2     : ('a e -> 'b e -> 'c e) -> 'a v -> 'b v -> 'c v
   val length   : 'a v -> int e
   val memoize  : 'a v -> 'a v M
-  val foldl    : ('a e * 'b e -> 'b e) -> 'b e -> 'a v -> 'b e M
-  val foldr    : ('a e * 'b e -> 'b e) -> 'b e -> 'a v -> 'b e M
+  val foldl    : ('a e * 'b e -> 'b e M) -> 'b e -> 'a v -> 'b e M
+  val foldr    : ('a e * 'b e -> 'b e M) -> 'b e -> 'a v -> 'b e M
   val concat   : 'a v -> 'a v -> 'a v
 
   type prog    (* compiled programs *)

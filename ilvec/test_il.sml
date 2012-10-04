@@ -24,6 +24,8 @@ val p = n := e >>
         For(V n, fn v => k := V v + e)
 val p0 = "n0 = 5;\nfor (int n2 = 0; n2 < n0; n2++) {\nn1 = (n2+5);\n}\n"
 val _ = tsts "p" (fn () => (ILUtil.ppProgram p, p0))
+
+val () = finish()
 end
 
 (*
