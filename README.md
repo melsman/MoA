@@ -47,8 +47,10 @@ accumulator.
 
 Here are the types of `foldr` and `tabulate`:
 
-    val foldr    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
-    val tabulate : INT -> (INT -> 'a t) -> 'a v
+```sml
+val foldr    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
+val tabulate : INT -> (INT -> 'a t) -> 'a v
+```
 
 We see that `foldr` returns a monadic value, which we can "run" using
 the `runM` function, which again generates a residual program
