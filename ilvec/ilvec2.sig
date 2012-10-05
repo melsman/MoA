@@ -15,7 +15,7 @@
 *)
 
 signature ILVEC = sig
-  type 'a M    (* monad encapsulating programs *)
+  type 'a M    (* state monad encapsulating program construction *)
   val >>=      : 'a M * ('a -> 'b M) -> 'b M
   val ret      : 'a -> 'a M
 
@@ -44,6 +44,8 @@ signature ILVEC = sig
   val min      : INT -> INT -> INT
 
   val empty    : 'a T -> 'a v
+  val single   : 'a t -> 'a v
+  val fromList : 'a t list -> 'a v
   val tabulate : INT -> (INT -> 'a t) -> 'a v
   val map      : ('a t -> 'b t) -> 'a v -> 'b v
   val rev      : 'a v -> 'a v
@@ -57,12 +59,12 @@ signature ILVEC = sig
   val concat   : 'a v -> 'a v -> 'a v
 
   type prog    (* compiled programs *)
+  type Value
   val runM     : INT M -> prog
-  val eval     : prog -> IL.Value
+  val eval     : prog -> Value
 end
 (*
   val flatten  : 'a v v -> 'a v e M
-  val single   : 'a -> 'a t
   val fromList : 'a list -> 'a t
   val fmap     : t -> IL.Exp -> t
   val list     : 'a t -> 'a list IL.P

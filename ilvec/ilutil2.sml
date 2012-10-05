@@ -1,5 +1,13 @@
-structure ILUtil :> ILUTIL = struct
+functor ILUtil(structure IL : IL
+               structure Program : PROGRAM
+                 where type p = IL.Program
+                   and type e = IL.Exp
+               ) : ILUTIL where type Value = IL.Value = struct
   open IL
+
+  type e = Program.e
+  type p = Program.p
+  type Value = IL.Value
 
   fun die s = raise Fail ("ILUtil." ^ s)
 
@@ -63,6 +71,7 @@ structure ILUtil :> ILUTIL = struct
         (case eval E e0 of
            BoolV b => eval E (if b then e1 else e2)
          | _  => die "eval.If.expecting boolean")
+      | Ext _ => die "eval.Ext"
 
   fun evalProgram E (p: Program) : Env =
       case p of
@@ -93,8 +102,8 @@ structure ILUtil :> ILUTIL = struct
       | Seq ps => List.foldl (fn (p,E) => evalProgram E p) E ps
       | Free n => die "Free.unimplemented"
 
-  val eval = fn e => fn te => eval e (Exp.toExp te)
-  val evalProgram = fn e => fn p => evalProgram e (Program.toProgram p)
+  val eval = fn e => fn te => eval e te
+  val evalProgram = fn e => fn p => evalProgram e p
 
   val emptyEnv = []
 
@@ -138,6 +147,7 @@ structure ILUtil :> ILUTIL = struct
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
       | If(e0,e1,e2) => pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2
+      | Ext _ => die "pp.Ext"
 
   fun ppP p =
       case p of
@@ -153,8 +163,8 @@ structure ILUtil :> ILUTIL = struct
       | Seq ps => List.foldl (fn (p,r) => r %% ppP p) (%"") ps
       | Free n => die "Free.unimplemented"
 
-  fun ppProgram p = ropeToString(ppP (Program.toProgram p))
-  fun ppExp e = ropeToString(pp (Exp.toExp e))
+  fun ppProgram p = ropeToString(ppP p)
+  fun ppExp e = ropeToString(pp e)
 
   fun ppValue v = 
       case v of

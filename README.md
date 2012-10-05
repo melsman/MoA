@@ -20,9 +20,9 @@ contains three implementations of the `VEC` signature:
      and take functionality.
 
   1. An implementation based on both pull arrays and _push arrays_,
-     which are continuation-based representations of arrays, which are
-     dual to pull arrays in the sense that they support concatenation
-     well, but drop and take operations not so well.
+     which are continuation-based representations of arrays and dual to
+     pull arrays in the sense that they support concatenation well,
+     but drop and take operations not so well.
 
 The `ilvec/` folder contains two different vector libraries that
 support map fusion and generate residual (C-like) code. The second

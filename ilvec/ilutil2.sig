@@ -1,11 +1,14 @@
 signature ILUTIL = sig
+  type e
+  type p
   type Env
+  type Value
   val emptyEnv    : Env
-  val add         : Env -> Name.t * IL.Value -> Env
-  val lookup      : Env -> Name.t -> IL.Value option
-  val eval        : Env -> Exp.e -> IL.Value
-  val evalProgram : Env -> Program.p -> Env
-  val ppProgram   : Program.p -> string
-  val ppExp       : Exp.e -> string
-  val ppValue     : IL.Value -> string
+  val add         : Env -> Name.t * Value -> Env
+  val lookup      : Env -> Name.t -> Value option
+  val eval        : Env -> e -> Value
+  val evalProgram : Env -> p -> Env
+  val ppProgram   : p -> string
+  val ppExp       : e -> string
+  val ppValue     : Value -> string
 end

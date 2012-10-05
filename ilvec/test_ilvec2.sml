@@ -64,23 +64,30 @@ val () = tststr "concat2" (fn () =>
                                  end)
                              end)
 
-val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
-
-fun addall x y f =
-    let open Int
-        fun loop i = if i > y then 0
-                     else f i + loop (i+1)
-    in loop x
-    end
-
 val () =  tststr "mat_sum" (fn () => 
-                                let val m = foldr (fn (r, a) => 
-                                                     foldr (ret o op +) a r) (I 0) m1
-                                in (ILUtil.ppValue(eval(runM m)), 
-                                    let open Int in Int.toString(9*450 div 2)
-                                    (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 = 9*450 div 2 *)
-                                    end)
-                                end)
+                               let 
+                                 val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
+                                 val m = foldr (fn (r, a) => 
+                                                   foldr (ret o op +) a r) (I 0) m1
+                               in (ILUtil.ppValue(eval(runM m)), 
+                                   let open Int in Int.toString(9*450 div 2)
+                                   (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 
+                                    = 9*450 div 2 *)
+                                   end)
+                               end)
 
+val () =  tststr "fromList" (fn () => 
+                               let 
+                                 val m = foldr (ret o op +) (I 0) e3 >>=
+                                         (fn sum => 
+                                             let val v = fromList [sum,I 1000,sum]
+                                             in foldr (ret o op *) (I 1) v
+                                             end)
+                               in (ILUtil.ppValue(eval(runM m)), 
+                                   let open Int
+                                       val sum_res = 11+10+9+8+7+6+5+4+3+2
+                                   in toString(sum_res*sum_res*1000)
+                                   end)
+                               end)
 val () = finish()
 end

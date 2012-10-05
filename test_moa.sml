@@ -115,7 +115,7 @@ val _ = tsta "stk7 - Prop12.1b" (fn () => (A.stk (A.zilde()) A,A))
 val _ = tst "pr0" (fn () => pr (A.zilde()) = "[]")
 val _ = tst "pr1" (fn () => pr A = "[1,2,3,4]")
 val _ = tst "pr2" (fn () => pr (A.reshape [2,2] A) = "[[1,2],[3,4]]")
-val _ = tst "pr3" (fn () => pr (A.reshape [2,0] (A.zilde())) = "[[],[]]")
+val _ = tst "pr3" (fn () => pr (A.reshape [2,0] (A.zilde())) = (*"[[],[]]"*) "[]")
 val _ = tst "pr4" (fn () => pr (A.reshape [0,2] (A.zilde())) = "[]")
 
 (*val B = A.vec *)

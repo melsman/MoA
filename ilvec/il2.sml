@@ -1,4 +1,43 @@
-structure IL = struct
+signature ILEXT = sig 
+  type 'Exp t
+end
+
+signature IL = sig
+  type 'Exp Ext
+  type Name = string
+
+  datatype Value =
+           IntV of int
+         | BoolV of bool
+         | FunV of Value -> Value
+         | ArrV of Value option ref vector
+  datatype Unop = Neg
+  datatype Binop = Add | Sub | Mul | Min | Max | Lt | Lteq | Eq
+  datatype Exp =
+           Var of Name
+         | Int of int
+         | T | F
+         | If of Exp * Exp * Exp
+         | Subs of Name * Exp
+         | Alloc of Exp
+         | Binop of Binop * Exp * Exp
+         | Unop of Unop * Exp
+         | App of Exp * Exp
+         | Ext of Exp Ext
+                  
+  type Size = Exp
+  type Index = Exp
+               
+  datatype Program =
+           For of Exp * (Name -> Program)
+         | Assign of Name * Exp
+         | AssignArr of Name * Exp * Exp
+         | Seq of Program list
+         | Free of Name
+end
+
+functor IL(X:ILEXT) : IL = struct
+type 'Exp Ext = 'Exp X.t
 type Name = string
 
 datatype Value =
@@ -18,6 +57,7 @@ datatype Exp =
        | Binop of Binop * Exp * Exp
        | Unop of Unop * Exp
        | App of Exp * Exp
+       | Ext of Exp Ext
                 
 type Size = Exp
 type Index = Exp
@@ -45,7 +85,7 @@ structure Name :> NAME = struct
   fun fromString s = s
 end
 
-signature EXP = sig
+signature PROGRAM = sig
   type e
   val $     : Name.t -> e
   val Subs  : Name.t * e -> e
@@ -61,21 +101,16 @@ signature EXP = sig
   val ==    : e * e -> e
   val max   : e -> e -> e
   val min   : e -> e -> e
-  val toExp : e -> IL.Exp
-end
 
-signature PROGRAM = sig
   type p
-  type e
   val For : e * (Name.t -> p) -> p
   val :=  : Name.t * e -> p
   val ::= : (Name.t * e) * e -> p
   val >>  : p * p -> p
   val emp : p
-  val toProgram : p -> IL.Program
 end
 
-structure Exp :> EXP = struct
+functor Program(IL:IL) : PROGRAM = struct
 local open IL
 in
   type e = Exp
@@ -112,17 +147,14 @@ val Alloc = IL.Alloc
 val If = IL.If
 val T = IL.T
 val F = IL.F
-end
 
-structure Program :> PROGRAM where type e = Exp.e = struct
-  type p = IL.Program
-  type e = Exp.e
-  val For = fn (e,f) => IL.For (Exp.toExp e,fn n => f(Name.fromString n))
-  local open IL infix := ::= >>
-  in fun n := e = Assign(Name.pr n,Exp.toExp e)
-     fun (n,i) ::= e = AssignArr(Name.pr n,Exp.toExp i,Exp.toExp e)
-     fun a >> b = Seq[a,b]
-     val emp = Seq[]
-     fun toProgram p = p
-  end
+type p = IL.Program
+val For = fn (e,f) => IL.For (toExp e,fn n => f(Name.fromString n))
+local open IL infix := ::= >>
+in fun n := e = Assign(Name.pr n,toExp e)
+   fun (n,i) ::= e = AssignArr(Name.pr n,toExp i,toExp e)
+   fun a >> b = Seq[a,b]
+   val emp = Seq[]
+   fun toProgram p = p
+end
 end
