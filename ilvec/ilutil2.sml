@@ -1,8 +1,4 @@
-functor ILUtil(structure IL : IL
-               structure Program : PROGRAM
-                 where type p = IL.Program
-                   and type e = IL.Exp
-               ) : ILUTIL where type Value = IL.Value = struct
+structure ILUtil : ILUTIL = struct
   open IL
 
   type e = Program.e
@@ -71,7 +67,6 @@ functor ILUtil(structure IL : IL
         (case eval E e0 of
            BoolV b => eval E (if b then e1 else e2)
          | _  => die "eval.If.expecting boolean")
-      | Ext _ => die "eval.Ext"
 
   fun evalProgram E (p: Program) : Env =
       case p of
@@ -79,7 +74,7 @@ functor ILUtil(structure IL : IL
         (case eval E e of
            IntV n =>
            let val name = Name.new ()
-               val body = f (Name.pr name)
+               val body = f (Var(Name.pr name))
            in iter (fn (i,E) => 
                        let val E = add E (name,IntV i)
                        in evalProgram E body
@@ -146,8 +141,7 @@ functor ILUtil(structure IL : IL
       | Subs(n,e1) => %n %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
-      | If(e0,e1,e2) => pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2
-      | Ext _ => die "pp.Ext"
+      | If(e0,e1,e2) => par(pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2)
 
   fun ppP p =
       case p of
@@ -155,7 +149,7 @@ functor ILUtil(structure IL : IL
         let val n = Name.pr(Name.new ())
         in % ("for (int " ^ n ^ " = 0; " ^ n ^ " < ") %%
              pp e %% %("; " ^ n ^ "++) {\n") %%
-             ppP(f n) %%
+             ppP(f (Var n)) %%
              %"}\n"
         end
       | Assign (n,e) => %n %% %" = " %% pp e %% %";\n"

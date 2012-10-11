@@ -6,24 +6,31 @@ signature ILMOA = sig
   val zilde   : 'a T -> 'a m
   val scl     : 'a t -> 'a m
   val vec     : 'a v -> 'a m
-  val iota    : INT -> INT m
+  val iota    : INT -> Int m
 
   val siz     : 'a m -> INT
-  val shape   : 'a m -> INT v
+  val shape   : 'a m -> Int v
   val dim     : 'a m -> INT
 
   val rav     : 'a m -> 'a m
-  val reshape : INT v -> 'a m -> 'a m
-  val index   : INT v -> 'a m -> 'a m
-  val map     : ('a t -> 'b t) -> 'a m -> 'b m
+  val reshape : Int v -> 'a m -> 'a m M
+  val index   : Int v -> 'a m -> 'a m M
+  val mmap    : ('a t -> 'b t) -> 'a m -> 'b m
 
   val red     : ('a t * 'b t -> 'b t M) -> 'b t -> 'a m -> 'b t M
 
+  val meq     : ('a t * 'a t -> BOOL) -> 'a m -> 'a m -> BOOL M  
+
+  val mif     : BOOL * 'a m * 'a m -> 'a m
+
+  val out     : 'c T -> ('a t * 'b t -> 'c t) -> 'a m -> 'b m -> 'c m M
+
+  val sum     : 'c T -> ('a t * 'b t -> 'c t) -> 'a m -> 'b m -> 'c m M
+
+  val scan    : ('a t * 'b t -> 'a t) -> 'a t -> 'b m -> 'a m M
+
 (*
   val fmap    : ('a -> 'b) m -> 'a -> 'b m
-  val scan    : ('a -> 'b -> 'a) -> 'a -> 'b m -> 'a m
-  val out     : ('a -> 'b -> 'c) -> 'a m -> 'b m -> 'c m
-  val sum     : ('a -> 'b -> 'c) -> 'a m -> 'b m -> 'c m
 
   val stk     : 'a m -> 'a m -> 'a m
 

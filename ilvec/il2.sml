@@ -1,43 +1,4 @@
-signature ILEXT = sig 
-  type 'Exp t
-end
-
-signature IL = sig
-  type 'Exp Ext
-  type Name = string
-
-  datatype Value =
-           IntV of int
-         | BoolV of bool
-         | FunV of Value -> Value
-         | ArrV of Value option ref vector
-  datatype Unop = Neg
-  datatype Binop = Add | Sub | Mul | Min | Max | Lt | Lteq | Eq
-  datatype Exp =
-           Var of Name
-         | Int of int
-         | T | F
-         | If of Exp * Exp * Exp
-         | Subs of Name * Exp
-         | Alloc of Exp
-         | Binop of Binop * Exp * Exp
-         | Unop of Unop * Exp
-         | App of Exp * Exp
-         | Ext of Exp Ext
-                  
-  type Size = Exp
-  type Index = Exp
-               
-  datatype Program =
-           For of Exp * (Name -> Program)
-         | Assign of Name * Exp
-         | AssignArr of Name * Exp * Exp
-         | Seq of Program list
-         | Free of Name
-end
-
-functor IL(X:ILEXT) : IL = struct
-type 'Exp Ext = 'Exp X.t
+structure IL = struct
 type Name = string
 
 datatype Value =
@@ -57,13 +18,12 @@ datatype Exp =
        | Binop of Binop * Exp * Exp
        | Unop of Unop * Exp
        | App of Exp * Exp
-       | Ext of Exp Ext
                 
 type Size = Exp
 type Index = Exp
              
 datatype Program =
-         For of Exp * (Name -> Program)
+         For of Exp * (Exp -> Program)
        | Assign of Name * Exp
        | AssignArr of Name * Exp * Exp
        | Seq of Program list
@@ -101,22 +61,25 @@ signature PROGRAM = sig
   val ==    : e * e -> e
   val max   : e -> e -> e
   val min   : e -> e -> e
+  val unI   : e -> int option
 
   type p
-  val For : e * (Name.t -> p) -> p
+  val For : e * (e -> p) -> p
   val :=  : Name.t * e -> p
   val ::= : (Name.t * e) * e -> p
   val >>  : p * p -> p
   val emp : p
 end
 
-functor Program(IL:IL) : PROGRAM = struct
+structure Program : PROGRAM = struct
 local open IL
 in
   type e = Exp
   fun toExp e = e
   fun $ n = Var (Name.pr n)
   fun I n = Int n
+  fun unI (Int n) = SOME n
+    | unI _ = NONE
   fun B true = T
     | B false = F 
   fun (Int a) - (Int b) = I(Int.-(a,b))
@@ -131,30 +94,63 @@ in
                                        end
     | a                    + b       = Binop(Add,a,b)
 
-  fun a * b = Binop(Mul,a,b)
+  fun (Int a) * (Int b) = I(Int.*(a,b))
+    | (Int 1) * b = b
+    | a * (Int 1) = a
+    | (Int 0) * b = I 0
+    | a * (Int 0) = I 0
+    | a * b = Binop(Mul,a,b)
   fun min (Int a) (Int b) = I(if a < b then a else b)
     | min a b = Binop(Min,a,b)
   fun max (Int a) (Int b) = I(if a > b then a else b)
     | max a b = Binop(Max,a,b)
 
-  fun a < b = Binop(Lt,a,b)
-  fun a <= b = Binop(Lteq,a,b)
+  fun (Int a) < (Int b) = B(Int.<(a,b))
+    | a < b = Binop(Lt,a,b)
+  fun (Int a) <= (Int b) = B(Int.<=(a,b))
+    | a <= b = Binop(Lteq,a,b)
   infix ==
-  fun a == b = Binop(Eq,a,b)
+  fun (Int a) == (Int b) = B(a=b)
+    | IL.T == IL.T = IL.T
+    | IL.F == IL.F = IL.T
+    | IL.F == IL.T = IL.F
+    | IL.T == IL.F = IL.F
+    | a == b = Binop(Eq,a,b)
 end
 fun Subs(n,e) = IL.Subs(Name.pr n, e)
 val Alloc = IL.Alloc
-val If = IL.If
+fun If(IL.T,b,c) = b
+  | If(IL.F,b,c) = c
+  | If(a,b,c) = if b = c then b 
+                else if b = IL.T andalso a = c then a
+                else if c = IL.F andalso a = b then a
+                else if b = IL.F andalso a = c then IL.F
+                else if c = IL.T andalso a = b then IL.T
+                else IL.If(a,b,c)
 val T = IL.T
 val F = IL.F
 
 type p = IL.Program
-val For = fn (e,f) => IL.For (toExp e,fn n => f(Name.fromString n))
+val emp = IL.Seq[]
+fun isEmp (IL.Seq[]) = true
+  | isEmp _ = false
+
+fun For(e,f) =
+    case e of
+      IL.Int 0 => emp
+    | IL.Int 1 => f (IL.Int 0)
+    | _ => if isEmp(f($(Name.new()))) then emp
+           else IL.For (e,f)
+
 local open IL infix := ::= >>
-in fun n := e = Assign(Name.pr n,toExp e)
-   fun (n,i) ::= e = AssignArr(Name.pr n,toExp i,toExp e)
-   fun a >> b = Seq[a,b]
-   val emp = Seq[]
+in
+   fun n := e = 
+       if e = $ n then emp 
+       else Assign(Name.pr n, e)
+   fun (n,i) ::= e = AssignArr(Name.pr n, i, e)
+   fun (Seq[]) >> b = b
+     | a >> (Seq[]) = a
+     | a >> b = Seq[a,b]
    fun toProgram p = p
 end
 end

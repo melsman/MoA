@@ -1,0 +1,9 @@
+local
+   $(SML_LIB)/basis/basis.mlb
+in
+   ilvec/il2.mlb
+   ilmoa.sig
+   ilmoa.sml
+   utest/utest.mlb
+   test_ilmoa.sml
+end

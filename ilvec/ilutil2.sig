@@ -2,7 +2,7 @@ signature ILUTIL = sig
   type e
   type p
   type Env
-  type Value
+  type Value = IL.Value
   val emptyEnv    : Env
   val add         : Env -> Name.t * Value -> Env
   val lookup      : Env -> Name.t -> Value option

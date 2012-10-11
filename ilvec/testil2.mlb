@@ -1,0 +1,8 @@
+local
+   $(SML_LIB)/basis/basis.mlb
+   il2.mlb
+   ../utest/utest.mlb
+in
+(*   test_il.sml *)
+   test_ilvec2.sml
+end

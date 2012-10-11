@@ -10,84 +10,109 @@ val e1 = tabulate (I 10) (fn x => x)
 val e2 = map (fn x => x + I 2) e1
 val e3 = rev e2
 
-val () = tststr "foldr_mem" (fn () => 
-                                let val m = memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3')
-                                in (ILUtil.ppValue(eval(runM m)), 
-                                    let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2)
-                                    end)
-                                end)
+fun tstM s e f = tststr s (fn () => (ILUtil.ppValue(eval(runM(f()))), e))
+fun tstmv s e f = tstM s e (ret o f)
 
-fun sum v = runM(foldl (ret o op +) (I 0) v)
 
-val () = tststr "dr" (fn () => (ILUtil.ppValue(eval(sum (dr (I 5) e3))), 
-                                let open Int in Int.toString(6+5+4+3+2)
-                                end))
 
-val () = tststr "tk" (fn () => (ILUtil.ppValue(eval(sum (tk (I 2) e3))), 
-                                let open Int in Int.toString(11+10)
-                                end))
+val () = tstM "foldr_mem" 
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
+              (fn () => memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3'))
 
-val () = tststr "memoize" (fn () => 
-                              let val v = tk (I 2) e3
-                                  val m = memoize v >>= (fn v' => ret(length v'))
-                                  val p = runM m
-                              in (ILUtil.ppValue(eval p), "2")
-                              end)
+fun sum v = foldl (ret o op +) (I 0) v
 
-val () = tststr "map2" (fn () => (ILUtil.ppValue(eval(sum (tk (I 2) (map2 (fn x => fn y => x * y) e3 e2)))), 
-                                  let open Int in Int.toString(11*2+10*3)
-                                  end))
+val () = tstM "dr"
+              let open Int in Int.toString(6+5+4+3+2) end
+              (fn () => sum (dr (I 5) e3))
 
-val () = tststr "foldl" (fn () => (ILUtil.ppValue(eval(runM(foldl (ret o op +) (I 0) e3))), 
-                                   let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2)
-                                   end))
+val () = tstM "tk"
+              let open Int in Int.toString(11+10) end
+              (fn () => sum (tk (I 2) e3))
 
-val () = tststr "foldr_mem" (fn () => 
-                                let val m = memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3')
-                                in (ILUtil.ppValue(eval(runM m)), 
-                                    let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2)
-                                    end)
-                                end)
+val () = tstM "memoize" "2"
+              (fn () => let val v = tk (I 2) e3
+                        in memoize v >>= (fn v' => ret(length v'))
+                        end)
 
-val () = tststr "concat" (fn () => 
-                             let val m = memoize (concat e3 e1) >>= (fn e3' => foldr (ret o op +) (I 0) e3')
-                             in (ILUtil.ppValue(eval(runM m)), 
-                                 let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45)
-                                 end)
-                             end)
+val () = tstM "map2"
+              let open Int in Int.toString(11*2+10*3) end
+              (fn () => sum (tk (I 2) (map2 (op *) e3 e2)))
 
-val () = tststr "concat2" (fn () => 
-                             let val e4 = concat e3 e1
-                                 val m = foldr (ret o op +) (I 0) e4
-                             in (ILUtil.ppValue(eval(runM m)), 
-                                 let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45)
-                                 end)
-                             end)
+val () = tstM "foldl"
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
+              (fn () => foldl (ret o op +) (I 0) e3)
 
-val () =  tststr "mat_sum" (fn () => 
-                               let 
-                                 val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
-                                 val m = foldr (fn (r, a) => 
-                                                   foldr (ret o op +) a r) (I 0) m1
-                               in (ILUtil.ppValue(eval(runM m)), 
-                                   let open Int in Int.toString(9*450 div 2)
-                                   (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 
-                                    = 9*450 div 2 *)
-                                   end)
-                               end)
+val () = tstM "foldr_mem"
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
+              (fn () => memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3'))
 
-val () =  tststr "fromList" (fn () => 
-                               let 
-                                 val m = foldr (ret o op +) (I 0) e3 >>=
-                                         (fn sum => 
-                                             let val v = fromList [sum,I 1000,sum]
-                                             in foldr (ret o op *) (I 1) v
-                                             end)
-                               in (ILUtil.ppValue(eval(runM m)), 
-                                   let open Int
-                                       val sum_res = 11+10+9+8+7+6+5+4+3+2
-                                   in toString(sum_res*sum_res*1000)
-                                   end)
-                               end)
+val () = tstM "concat"
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45) end
+              (fn () => memoize (concat e3 e1) >>= (fn e3' => foldr (ret o op +) (I 0) e3'))
+
+val () = tstM "concat2"
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45) end
+              (fn () => let val e4 = concat e3 e1
+                        in foldr (ret o op +) (I 0) e4
+                        end)
+
+val () = tstM "mat_sum"
+              let open Int in Int.toString(9*450 div 2)
+              (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 
+               = 9*450 div 2 *)
+              end
+              (fn () =>
+                  let val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
+                  in foldr (fn (r, a) => foldr (ret o op +) a r) (I 0) m1
+                  end)
+
+val () = tstM "fromList"
+              let open Int
+                  val sum_res = 11+10+9+8+7+6+5+4+3+2
+              in toString(sum_res*sum_res*1000)
+              end
+              (fn () => 
+                  foldr (ret o op +) (I 0) e3 >>=
+                        (fn sum => 
+                            let val v = fromList [sum,I 1000,sum]
+                            in foldr (ret o op *) (I 1) v
+                            end))                  
+
+fun tstT s f = tstM s "true" f
+fun tstF s f = tstM s "false" f
+
+val v123 = fromList [I 1, I 2, I 3]
+val () = tstT "eq_empty"
+         (fn () => eq (op ==) 
+                      (empty Int) (empty Int)
+         )
+
+val () = tstT "eq_true"
+         (fn () => eq (op ==) 
+                      v123
+                      (tabulate (I 3) (fn x => x + I 1))
+         )
+
+val () = tstF "eq_false"
+         (fn () => eq (op ==) 
+                      (fromList [I 1, I 4, I 3])
+                      (tabulate (I 3) (fn x => x + I 1))
+         )
+
+val () = tstF "eq_false2"
+         (fn () => memoize v123 >>=
+                           (fn v => eq (op ==) v
+                                       (tabulate (I 4) (fn x => x + I 1)))
+         )
+
+val () = tstT "If_V_t"
+         (fn () => eq (op ==) (If(B true, v123, empty Int)) v123)
+
+val () = tstT "If_V_f"
+         (fn () => eq (op ==) (If(B false, v123, empty Int)) (empty Int))
+
+val () = tstT "flatten"
+         (fn () => flatten Int (tabulate (I 4) (fn y => tabulate y (fn x => y * x))) >>= (fn v => eq (op ==) v (fromList[I 0,I 0,I 2,I 0, I 3, I 6])))
+
 val () = finish()
 end

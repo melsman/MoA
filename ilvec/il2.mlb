@@ -6,7 +6,4 @@ in
    ilutil2.sml
    ilvec2.sig
    ilvec2.sml
-   ../utest/utest.mlb
-(*   test_il.sml *)
-   test_ilvec2.sml
 end
