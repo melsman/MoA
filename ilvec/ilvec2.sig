@@ -9,11 +9,12 @@ signature ILVEC = sig
   val Int      : Int T
   val Bool     : Bool T
   val Vec      : 'a T -> 'a Vec T
- 
-  type 'a t                 (* terms *)
-  type 'a v    = 'a Vec t   (* vectors *)
 
-  type INT     = Int t      (* Basic terms *)
+  (* Terms *)
+  type 'a t                 (* terms *)
+  type 'a v    = 'a Vec t   (* vector terms *)
+
+  type INT     = Int t      (* basic terms *)
   type BOOL    = Bool t
 
   val I        : int -> INT
@@ -49,10 +50,22 @@ signature ILVEC = sig
   val shapify  : Int v -> Int v  (* eliminate 1's and reduce to [0] if the
                                   * argument contains a 0 *)
 
-  type prog    (* compiled programs *)
-  type Value   = IL.Value
-  val runM     : 'a t M -> prog
-  val eval     : prog -> Value
+  (* Compiled Programs *)
+  type ('a,'b) prog
+  val runM     : 'b t M -> (unit,'b) prog
+  val runF     : ('a t -> 'b t M) -> ('a,'b) prog
+ 
+  (* Values and Evaluation *)
+  type 'a V
+  val Iv       : int -> Int V
+  val unIv     : Int V -> int
+  val Bv       : bool -> Bool V
+  val unBv     : Bool V -> bool
+  val Vv       : 'a V list -> 'a Vec V
+  val unVv     : 'a Vec V -> 'a V list
+  val Uv       : unit V 
+  val eval     : ('a,'b) prog -> 'a V -> 'b V
+  val ppV      : 'a V -> string
 end
 (*
   val fmap     : t -> IL.Exp -> t

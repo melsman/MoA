@@ -107,17 +107,36 @@ val op == : INT * INT -> BOOL = binop P.==
 val max   : INT -> INT -> INT = curry(binop(uncurry P.max))
 val min   : INT -> INT -> INT = curry(binop(uncurry P.min))
 
-type prog = Name.t -> P.p
+type ('a,'b) prog = Name.t * Name.t -> P.p
 
-fun eval (p: prog) : IL.Value =
-    let val name = Name.new ()
-        val program = p name
-        val () = print (ILUtil.ppProgram program ^ "\n")
-        val env0 = ILUtil.emptyEnv
+(* Values and Evaluation *)
+type 'a V    = IL.Value
+val Iv       = IL.IntV
+val unIv     = fn IL.IntV i => i
+                | _ => die "unIv"
+val Bv       = IL.BoolV
+val unBv     = fn IL.BoolV b => b
+                | _ => die "unBv"
+fun Vv vs    = IL.ArrV(Vector.fromList(List.map (fn v => ref(SOME v)) vs))
+fun vlist v = Vector.foldl (op ::) nil v
+val unVv     = fn IL.ArrV v => List.map (fn ref (SOME a) => a
+                                          | _ => die "unVv.1") (vlist v)
+                | _ => die "unVv"
+val Uv       = Iv 0
+val ppV      = ILUtil.ppValue 
+fun eval (p: ('a,'b) prog) (v: 'a V) : 'b V =
+    let val name_arg = Name.new ()
+        val name_res = Name.new ()
+        val program = p (name_arg, name_res)
+        val () = print ("Program(" ^ Name.pr name_arg ^ ") = " ^ 
+                        Name.pr name_res ^ ":\n" ^ 
+                        ILUtil.ppProgram program ^ "\n")
+        val env0 = ILUtil.add ILUtil.emptyEnv (name_arg,v)
         val env = ILUtil.evalProgram env0 program        
-    in case ILUtil.lookup env name of
+    in case ILUtil.lookup env name_res of
          SOME v => v
-       | NONE => die ("Error finding " ^ Name.pr name ^ " in result environment for evaluation of\n" ^
+       | NONE => die ("Error finding " ^ Name.pr name_res ^ 
+                      " in result environment for evaluation of\n" ^
                       ILUtil.ppProgram program)
     end
 
@@ -125,12 +144,23 @@ type 'a M = 'a * P.p
 infix >>= >> ::=
 val op >> = P.>>
 val op := = P.:=
+
 fun (v,p) >>= f = let val (v',p') = f v in (v',p >> p') end
 fun ret v = (v, P.emp)
-fun runM (e,p) n =
+
+fun runF f (n0,n) =
+    let val (e,p) = f (E(IL.Var n0))
+    in case unE e of
+         SOME e => p >> n := e
+       | NONE => die "runM: expecting expression"
+    end
+
+fun runM0 (e,p) n =
     case unE e of
       SOME e => p >> n := e
     | NONE => die "runM: expecting expression"
+
+fun runM (e,p) (_,n) = runM0 (e,p) n
 
 fun memoize t =
     case unV t of
@@ -152,7 +182,7 @@ fun foldl f e v =
          (SOME e, SOME (n,g)) =>
          let val a = Name.new ()
              fun body i =
-                 runM (f(g i,E($ a))) a
+                 runM0 (f(g i,E($ a))) a
              val p = a := e >>
                      For(n, body)
          in (E($ a),p)
@@ -175,7 +205,7 @@ fun foldr f e v =
           val a = Name.new ()
           val n0 = Name.new ()                   
           fun body i =
-              runM (f(g ($ n0 - i),E($ a))) a
+              runM0 (f(g ($ n0 - i),E($ a))) a
           val p = n0 := n - I 1 >>
                   a := e >>
                   For(n, body)

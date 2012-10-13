@@ -13,15 +13,13 @@ structure ILUtil : ILUTIL = struct
       in loop a i
       end
       
-  type Env = (Name * Value) list
+  type Env = (Name.t * Value) list
   val empty = []
-  fun add e (n,v) = (Name.pr n,v)::e
+  fun add e (n,v) = (n,v)::e
   fun lookup E n =
-      let val n = Name.pr n
-      in case List.find (fn (x,_) => x=n) E of
-           SOME(_,v) => SOME v
-         | NONE => NONE
-      end
+      case List.find (fn (x,_) => x=n) E of
+        SOME(_,v) => SOME v
+      | NONE => NONE
 
   fun evalBinOp Add (IntV i1,IntV i2) = IntV(i1+i2)
     | evalBinOp Sub (IntV i1,IntV i2) = IntV(i1-i2)
@@ -38,9 +36,9 @@ structure ILUtil : ILUTIL = struct
 
   fun eval (E:Env) (e:Exp) : Value =
       case e of
-        Var n => (case lookup E (Name.fromString n) of
+        Var n => (case lookup E n of
                     SOME v => v
-                  | NONE => die("lookup: " ^ n))
+                  | NONE => die("lookup: " ^ Name.pr n))
       | Int i => IntV i
       | T => BoolV true
       | F => BoolV false
@@ -52,12 +50,12 @@ structure ILUtil : ILUTIL = struct
          | _ => die "eval.expecting function for function application")        
       | Subs(n,e1) =>
         (case eval E e1 of
-           IntV i => (case lookup E (Name.fromString n) of
+           IntV i => (case lookup E n of
                         SOME(ArrV v) => 
                         (case ! (Vector.sub(v,i)) of
                            SOME v => v
                          | NONE => die "eval.Subs.array value not initialized")                       
-                      | _ => die("eval.Subs.lookup: " ^ n))
+                      | _ => die("eval.Subs.lookup: " ^ Name.pr n))
          | _ => die "eval.Subs.expecting integer")
       | Alloc e1 =>
         (case eval E e1 of
@@ -74,19 +72,19 @@ structure ILUtil : ILUTIL = struct
         (case eval E e of
            IntV n =>
            let val name = Name.new ()
-               val body = f (Var(Name.pr name))
+               val body = f (Var name)
            in iter (fn (i,E) => 
                        let val E = add E (name,IntV i)
                        in evalProgram E body
                        end) E (0,n-1)
            end
          | _ => die "For")
-      | Assign (n,e) => add E (Name.fromString n, eval E e)
+      | Assign (n,e) => add E (n, eval E e)
       | AssignArr (n,i,e) =>
         (case eval E i of
            IntV i =>
            let val v = eval E e
-           in case lookup E (Name.fromString n) of
+           in case lookup E n of
                 SOME(ArrV vec) =>
                 let val r = Vector.sub(vec,i)
                 in r := SOME v; E
@@ -130,7 +128,7 @@ structure ILUtil : ILUTIL = struct
 
   fun pp e =
       case e of
-        Var n => %n
+        Var n => %(Name.pr n)
       | Int i => % (Int.toString i)
       | Binop(binop,e1,e2) => 
         if infi binop then par (pp e1 %% % (ppB binop) %% pp e2)
@@ -138,7 +136,7 @@ structure ILUtil : ILUTIL = struct
       | Unop(unop,e1) => %(ppU unop) %% (pp e1)
       | App (e1,e2) => pp e1 %% par(pp e2)
       | Alloc e1 => %"alloc" %% par(pp e1)
-      | Subs(n,e1) => %n %% spar(pp e1)
+      | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
       | If(e0,e1,e2) => par(pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2)
@@ -146,14 +144,15 @@ structure ILUtil : ILUTIL = struct
   fun ppP p =
       case p of
         For (e, f) =>
-        let val n = Name.pr(Name.new ())
-        in % ("for (int " ^ n ^ " = 0; " ^ n ^ " < ") %%
-             pp e %% %("; " ^ n ^ "++) {\n") %%
+        let val n = Name.new()
+            val ns = Name.pr n 
+        in % ("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
+             pp e %% %("; " ^ ns ^ "++) {\n") %%
              ppP(f (Var n)) %%
              %"}\n"
         end
-      | Assign (n,e) => %n %% %" = " %% pp e %% %";\n"
-      | AssignArr (n,i,e) => %n %% spar(pp i) %% %" = " %% pp e %% %";\n"
+      | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";\n"
+      | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";\n"
       | Seq ps => List.foldl (fn (p,r) => r %% ppP p) (%"") ps
       | Free n => die "Free.unimplemented"
 

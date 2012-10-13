@@ -11,8 +11,16 @@ fun qq s = "'" ^ s ^ "'"
 fun tstM s e f =
     tstopt s (fn () => let val M = f()
                            val p = runM M
-                           val v = eval p
-                           val result = ILUtil.ppValue v
+                           val v = eval p Uv
+                           val result = ppV v
+		       in if result = e then NONE
+			  else SOME (qq result ^ " differs from the expected value " ^ qq e)
+		       end)
+
+fun tstF s f a e =
+    tstopt s (fn () => let val p = runF f
+                           val v = eval p a
+                           val result = ppV v
 		       in if result = e then NONE
 			  else SOME (qq result ^ " differs from the expected value " ^ qq e)
 		       end)
@@ -177,6 +185,10 @@ val _ = tst "pr4" (fn () => pr (A.reshape [0,2] (A.zilde())) = "[]")
 
 (*val B = A.vec *)
 *)
+
+val _ = tstF "iota5" (fn v => ret(siz(iota(v + I 2)))) (Iv 5) "7"
+val _ = tstF "red5" (fn v => red (ret o op +) (I 0) (iota v)) (Iv 5) "15"
+
 val () = finish()                           
 
 end
