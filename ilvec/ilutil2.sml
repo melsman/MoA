@@ -79,6 +79,7 @@ structure ILUtil : ILUTIL = struct
                        end) E (0,n-1)
            end
          | _ => die "For")
+      | Ret e => add E (Name.result, eval E e)
       | Assign (n,e) => add E (n, eval E e)
       | AssignArr (n,i,e) =>
         (case eval E i of
@@ -102,16 +103,23 @@ structure ILUtil : ILUTIL = struct
 
   datatype rope = % of string
                 | %% of rope * rope
+                | %> of rope
+                | %$
+  fun repeat s 0 = ""
+    | repeat s n = s ^ repeat s (n-1)
   infix %%
-  fun ropeToString r =
-      let fun loop a = fn
+  fun ropeToString n r =
+      let fun loop n a = fn
               % s => s :: a
-            | r1 %% r2 => loop (loop a r1) r2
-      in (String.concat o rev o loop nil) r
+            | %$ => ("\n" ^ repeat "  " n) :: a
+            | %> r => loop (n+1) a r
+            | r1 %% r2 => loop n (loop n a r1) r2
+      in (String.concat o rev o (loop n nil)) r
       end
 
   fun par e = %"(" %% e %% %")"
   fun spar e = %"[" %% e %% %"]"
+  fun cpar e = %"{" %% e %% %"}"
 
   fun ppB Add = "+"
     | ppB Sub = "-"
@@ -129,7 +137,7 @@ structure ILUtil : ILUTIL = struct
   fun pp e =
       case e of
         Var n => %(Name.pr n)
-      | Int i => % (Int.toString i)
+      | Int i => %(Int.toString i)
       | Binop(binop,e1,e2) => 
         if infi binop then par (pp e1 %% % (ppB binop) %% pp e2)
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
@@ -141,23 +149,42 @@ structure ILUtil : ILUTIL = struct
       | F => %(Bool.toString false)
       | If(e0,e1,e2) => par(pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2)
 
+fun flatit ps =
+    let fun loop a =
+         fn Seq[] => a
+          | Seq(x::xs) => loop (loop a x) (Seq xs)
+          | p => p::a
+    in rev (loop nil (Seq ps))
+    end
+
   fun ppP p =
       case p of
         For (e, f) =>
         let val n = Name.new()
             val ns = Name.pr n 
-        in % ("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
-             pp e %% %("; " ^ ns ^ "++) {\n") %%
-             ppP(f (Var n)) %%
-             %"}\n"
+        in %("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
+            pp e %% %("; " ^ ns ^ "++) {") %% 
+              %>(%$ %% ppP(f (Var n))) %%
+            %$ %% %"}"
         end
-      | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";\n"
-      | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";\n"
-      | Seq ps => List.foldl (fn (p,r) => r %% ppP p) (%"") ps
+      | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
+      | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
+      | Seq ps => List.foldl (fn (p,r) => 
+                                 if r = %"" then ppP p
+                                 else r %% %$ %% ppP p) 
+                             (%"") (flatit ps)
       | Free n => die "Free.unimplemented"
+      | Ret e => %"return " %% pp e %% %";"
 
-  fun ppProgram p = ropeToString(ppP p)
-  fun ppExp e = ropeToString(pp e)
+  fun ppProgram n p = ropeToString n (%$ %% ppP p)
+  fun ppExp e = ropeToString 0 (pp e)
+
+  fun ppFunction name argname p =
+      let val r =
+              %name %% par(%(Name.pr argname)) %% %" " %% cpar(
+              %>(%$ %% ppP p) %% %$) %% %$
+      in ropeToString 0 r
+      end
 
   fun ppValue v = 
       case v of

@@ -1,12 +1,14 @@
 signature NAME = sig
   eqtype t
   val new : unit -> t
+  val result : t
   val pr  : t -> string
   val fromString : string -> t
 end
 
 structure Name :> NAME = struct
   type t = string
+  val result = "result"
   val count = ref 0
   fun new () = "n" ^ Int.toString(!count) before count := !count + 1
   fun pr s = s
@@ -41,6 +43,7 @@ datatype Program =
        | AssignArr of Name.t * Exp * Exp
        | Seq of Program list
        | Free of Name.t
+       | Ret of Exp
 end
 
 signature PROGRAM = sig
@@ -66,6 +69,7 @@ signature PROGRAM = sig
   val :=  : Name.t * e -> p
   val ::= : (Name.t * e) * e -> p
   val >>  : p * p -> p
+  val Ret : e -> p
   val emp : p
 end
 
@@ -134,6 +138,7 @@ val F = IL.F
 
 type p = IL.Program
 val emp = IL.Seq[]
+val Ret = IL.Ret
 fun isEmp (IL.Seq[]) = true
   | isEmp _ = false
 
