@@ -170,8 +170,8 @@ fun sum ty g a b =
 
 fun pre (a: 'a v) : 'a Vec v =
     let val n = length a
-        val iotan = tabulate n (fn x => x)
-    in map (fn i => tk (i + I 1) a) iotan
+        val iotan = tabulate n (fn x => x + I 1)
+    in map (fn i => tk i a) iotan
     end
 
 fun mapm emp f xs = 

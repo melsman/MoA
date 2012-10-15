@@ -35,6 +35,9 @@ signature ILVEC = sig
   val tabulate : INT -> (INT -> 'a t) -> 'a v
   val map      : ('a t -> 'b t) -> 'a v -> 'b v
   val rev      : 'a v -> 'a v
+  val double   : 'a v -> 'a v
+  val stride   : INT -> 'a v -> 'a v
+  val interlv  : 'a v -> 'a v -> 'a v
   val tk       : INT -> 'a v -> 'a v
   val dr       : INT -> 'a v -> 'a v
   val map2     : ('a t * 'b t -> 'c t) -> 'a v -> 'b v -> 'c v

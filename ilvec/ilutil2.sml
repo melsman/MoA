@@ -2,7 +2,8 @@ structure ILUtil : ILUTIL = struct
   open IL
 
   type e = Program.e
-  type p = Program.p
+  type s = Program.s
+  type ss = Program.s list
   type Value = IL.Value
 
   fun die s = raise Fail ("ILUtil." ^ s)
@@ -24,6 +25,7 @@ structure ILUtil : ILUTIL = struct
   fun evalBinOp Add (IntV i1,IntV i2) = IntV(i1+i2)
     | evalBinOp Sub (IntV i1,IntV i2) = IntV(i1-i2)
     | evalBinOp Mul (IntV i1,IntV i2) = IntV(i1*i2)
+    | evalBinOp Divv (IntV i1,IntV i2) = IntV(i1 div i2)
     | evalBinOp Min (IntV i1,IntV i2) = IntV(if i1 < i2 then i1 else i2)
     | evalBinOp Max (IntV i1,IntV i2) = IntV(if i1 > i2 then i1 else i2)
     | evalBinOp Lt  (IntV i1,IntV i2) = BoolV(i1 < i2)
@@ -66,16 +68,16 @@ structure ILUtil : ILUTIL = struct
            BoolV b => eval E (if b then e1 else e2)
          | _  => die "eval.If.expecting boolean")
 
-  fun evalProgram E (p: Program) : Env =
-      case p of
+  fun evalS E (s: Stmt) : Env =
+      case s of
         For (e, f) =>
         (case eval E e of
            IntV n =>
            let val name = Name.new ()
-               val body = f (Var name)
+               val ss = f (Var name)
            in iter (fn (i,E) => 
                        let val E = add E (name,IntV i)
-                       in evalProgram E body
+                       in evalSS E ss
                        end) E (0,n-1)
            end
          | _ => die "For")
@@ -93,11 +95,11 @@ structure ILUtil : ILUTIL = struct
               | _ => die "eval.AssignArr.couldn't find vector in env"
            end
          | _ => die "eval.AssignArr.expecting int as index")
-      | Seq ps => List.foldl (fn (p,E) => evalProgram E p) E ps
       | Free n => die "Free.unimplemented"
+      | Nop => E
 
-  val eval = fn e => fn te => eval e te
-  val evalProgram = fn e => fn p => evalProgram e p
+  and evalSS E ss =
+      List.foldl (fn (s,E) => evalS E s) E ss
 
   val emptyEnv = []
 
@@ -124,13 +126,14 @@ structure ILUtil : ILUTIL = struct
   fun ppB Add = "+"
     | ppB Sub = "-"
     | ppB Mul = "*"
+    | ppB Divv = "/"
     | ppB Min = "min"
     | ppB Max = "max"
     | ppB Lt = "<"
     | ppB Lteq = "<="
     | ppB Eq = "=="
 
-  fun infi x = List.exists (fn y => x = y) [Add,Sub,Mul,Lt,Lteq,Eq]
+  fun infi x = List.exists (fn y => x = y) [Add,Sub,Mul,Divv,Lt,Lteq,Eq]
 
   fun ppU Neg = "-"
 
@@ -149,40 +152,35 @@ structure ILUtil : ILUTIL = struct
       | F => %(Bool.toString false)
       | If(e0,e1,e2) => par(pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2)
 
-fun flatit ps =
-    let fun loop a =
-         fn Seq[] => a
-          | Seq(x::xs) => loop (loop a x) (Seq xs)
-          | p => p::a
-    in rev (loop nil (Seq ps))
-    end
-
-  fun ppP p =
-      case p of
+  fun ppSS0 ss =
+      case ss of
+        nil => %""
+      | Nop :: ss => ppSS0 ss
+      | s :: ss => %$ %% ppS s %% ppSS0 ss
+ 
+  and ppS s =
+      case s of
         For (e, f) =>
         let val n = Name.new()
             val ns = Name.pr n 
         in %("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
             pp e %% %("; " ^ ns ^ "++) {") %% 
-              %>(%$ %% ppP(f (Var n))) %%
+              %>(ppSS0(f (Var n))) %%
             %$ %% %"}"
         end
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
       | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
-      | Seq ps => List.foldl (fn (p,r) => 
-                                 if r = %"" then ppP p
-                                 else r %% %$ %% ppP p) 
-                             (%"") (flatit ps)
+      | Nop => %""
       | Free n => die "Free.unimplemented"
       | Ret e => %"return " %% pp e %% %";"
 
-  fun ppProgram n p = ropeToString n (%$ %% ppP p)
+  fun ppSS n ss = ropeToString n (%$ %% ppSS0 ss)
   fun ppExp e = ropeToString 0 (pp e)
 
-  fun ppFunction name argname p =
+  fun ppFunction name argname ss =
       let val r =
               %name %% par(%(Name.pr argname)) %% %" " %% cpar(
-              %>(%$ %% ppP p) %% %$) %% %$
+              %>(ppSS0 ss) %% %$) %% %$
       in ropeToString 0 r
       end
 

@@ -10,10 +10,8 @@ val e1 = tabulate (I 10) (fn x => x)
 val e2 = map (fn x => x + I 2) e1
 val e3 = rev e2
 
-fun tstM s e f = tststr s (fn () => (ILUtil.ppValue(eval(runM(f()))), e))
+fun tstM s e f = tststr s (fn () => (ppV(eval(runM(f()))Uv), e))
 fun tstmv s e f = tstM s e (ret o f)
-
-
 
 val () = tstM "foldr_mem" 
               let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
@@ -113,6 +111,36 @@ val () = tstT "If_V_f"
 
 val () = tstT "flatten"
          (fn () => flatten Int (tabulate (I 4) (fn y => tabulate y (fn x => y * x))) >>= (fn v => eq (op ==) v (fromList[I 0,I 0,I 2,I 0, I 3, I 6])))
+
+val v112233 = fromList [I 1, I 1, I 2, I 2, I 3, I 3]
+val () = tstT "double"
+         (fn () => eq (op ==)
+                      (double v123)
+                      v112233
+         )
+
+val () = tstT "stride1"
+         (fn () => eq (op ==)
+                      (stride (I 2) v112233)
+                      v123
+         )
+
+val v12 = fromList[I 1, I 2]
+val () = tstT "stride2"
+         (fn () => eq (op ==)
+                      (stride (I 3) v112233)
+                      v12
+         )
+
+val v0246 = tabulate (I 4) (fn i => i * I 2)
+val v1357 = tabulate (I 4) (fn i => i * I 2 + I 1)
+
+val () = tstT "interlv1"
+         (fn () => eq (op ==)
+                      (interlv v0246 v1357)
+                      (tabulate (I 8) (fn x => x))
+         )
+
 
 val () = finish()
 end

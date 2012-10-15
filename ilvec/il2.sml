@@ -22,7 +22,7 @@ datatype Value =
        | FunV of Value -> Value
        | ArrV of Value option ref vector
 datatype Unop = Neg
-datatype Binop = Add | Sub | Mul | Min | Max | Lt | Lteq | Eq
+datatype Binop = Add | Sub | Mul | Divv | Min | Max | Lt | Lteq | Eq
 datatype Exp =
          Var of Name.t
        | Int of int
@@ -37,11 +37,11 @@ datatype Exp =
 type Size = Exp
 type Index = Exp
              
-datatype Program =
-         For of Exp * (Exp -> Program)
+datatype Stmt =
+         For of Exp * (Exp -> Stmt list)
        | Assign of Name.t * Exp
        | AssignArr of Name.t * Exp * Exp
-       | Seq of Program list
+       | Nop
        | Free of Name.t
        | Ret of Exp
 end
@@ -57,6 +57,7 @@ signature PROGRAM = sig
   val +     : e * e -> e
   val -     : e * e -> e
   val *     : e * e -> e
+  val /     : e * e -> e
   val <     : e * e -> e
   val <=    : e * e -> e
   val ==    : e * e -> e
@@ -64,13 +65,13 @@ signature PROGRAM = sig
   val min   : e -> e -> e
   val unI   : e -> int option
 
-  type p
-  val For : e * (e -> p) -> p
-  val :=  : Name.t * e -> p
-  val ::= : (Name.t * e) * e -> p
-  val >>  : p * p -> p
-  val Ret : e -> p
-  val emp : p
+  type s
+  type ss = s list
+  val For : e * (e -> ss) -> ss -> ss
+  val :=  : Name.t * e -> s
+  val ::= : (Name.t * e) * e -> s
+  val Ret : e -> s
+  val emp : s
 end
 
 structure Program : PROGRAM = struct
@@ -104,6 +105,10 @@ in
     | a       * (Int 0) = I 0
     | a       * b       = Binop(Mul,a,b)
 
+  fun (Int a) / (Int b) = I(Int.div(a,b))
+    | a / (Int 1) = a
+    | a / b = Binop(Divv,a,b)
+
   fun min (Int a) (Int b) = I(if a < b then a else b)
     | min a b = Binop(Min,a,b)
 
@@ -136,28 +141,24 @@ fun If(IL.T,b,c) = b
 val T = IL.T
 val F = IL.F
 
-type p = IL.Program
-val emp = IL.Seq[]
+type s = IL.Stmt
+type ss = s list
+val emp = IL.Nop
 val Ret = IL.Ret
-fun isEmp (IL.Seq[]) = true
-  | isEmp _ = false
+fun isEmp ss = List.all (fn IL.Nop => true | _ => false) ss
 
-fun For(e,f) =
+fun For(e,f) ss =
     case e of
-      IL.Int 0 => emp
-    | IL.Int 1 => f (IL.Int 0)
-    | _ => if isEmp(f($(Name.new()))) then emp
-           else IL.For (e,f)
+      IL.Int 0 => ss
+    | IL.Int 1 => f (IL.Int 0) @ ss
+    | _ => if isEmp(f($(Name.new()))) then ss
+           else IL.For (e,f) :: ss
 
-local open IL infix := ::= >>
+local open IL infix := ::=
 in
    fun n := e = 
        if e = $ n then emp 
        else Assign(n,e)
    fun (n,i) ::= e = AssignArr(n, i, e)
-   fun (Seq[]) >> b = b
-     | a >> (Seq[]) = a
-     | a >> b = Seq[a,b]
-   fun toProgram p = p
 end
 end

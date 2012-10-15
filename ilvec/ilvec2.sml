@@ -52,6 +52,15 @@ in
         SOME (n,g) => V(n, f o g)
       | NONE => die "map: expecting vector"
 
+  fun stride t v =
+      case (unE t, unV v) of
+        (SOME n, SOME (m,g)) => 
+        let val n = max (I 1) n
+        in V(m / n, fn i => g(n * i))
+        end
+      | (NONE, _) => die "stride: expecting expression"
+      | _ => die "stride: expecting vector"
+
   fun map2 f t1 t2 =
       case (unV t1, unV t2) of
         (SOME(n1,f1), SOME(n2,f2)) => V(min n1 n2, fn i => f(f1 i,f2 i))
@@ -123,46 +132,73 @@ val unVv     = fn IL.ArrV v => List.map (fn ref (SOME a) => a
 val Uv       = Iv 0
 val ppV      = ILUtil.ppValue 
 
-type 'a M = 'a * P.p
+type 'a M = 'a * (P.ss -> P.ss)
 infix >>= >> ::=
-val op >> = P.>>
 val op := = P.:=
 
-type ('a,'b) prog = Name.t * (P.e -> P.p) -> P.p
+type ('a,'b) prog = Name.t * (P.e -> P.s) -> P.ss
 
 fun eval (p: ('a,'b) prog) (v: 'a V) : 'b V =
     let val name_arg = Name.new ()
-        val program = p (name_arg, P.Ret)
-        val () = print (ILUtil.ppFunction "kernel" name_arg program)
+        val ss = p (name_arg, P.Ret)
+        val () = print (ILUtil.ppFunction "kernel" name_arg ss)
 (*
         val () = print ("Program(" ^ Name.pr name_arg ^ ") {" ^ 
                         ILUtil.ppProgram 1 program ^ "\n}\n")
 *)
         val env0 = ILUtil.add ILUtil.emptyEnv (name_arg,v)
-        val env = ILUtil.evalProgram env0 program        
+        val env = ILUtil.evalSS env0 ss      
     in case ILUtil.lookup env Name.result of
          SOME v => v
        | NONE => die ("Error finding '" ^ Name.pr Name.result ^ 
                       "' in result environment for evaluation of\n" ^
-                      ILUtil.ppProgram 0 program)
+                      ILUtil.ppSS 0 ss)
     end
 
-fun (v,p) >>= f = let val (v',p') = f v in (v',p >> p') end
-fun ret v = (v, P.emp)
+fun (v,ssT) >>= f = let val (v',ssT') = f v in (v', fn ss => ssT(ssT' ss)) end
+fun ret v = (v, fn ss => ss)
 
-fun runF f (n0,k) =
-    let val (e,p) = f (E(IL.Var n0))
+fun runF (f: 'a t -> 'b t M) (n0,k) =
+    let val (e,ssT) = f (E(IL.Var n0))
     in case unE e of
-         SOME e => p >> k e
+         SOME e => ssT [k e]
        | NONE => die "runM: expecting expression"
     end
 
-fun runM0 (e,p) k =
+fun runM0 (e,ssT) k =
     case unE e of
-      SOME e => p >> k e
+      SOME e => ssT [k e]
     | NONE => die "runM: expecting expression"
 
-fun runM (e,p) (_,k) = runM0 (e,p) k
+fun runM (e,ssT) (_,k) = runM0 (e,ssT) k
+
+fun If(x0,a1,a2) =
+    case (unE x0, unV a1, unV a2) of
+      (SOME x, SOME (n1,f1), SOME (n2,f2)) =>
+      V(P.If(x,n1,n2), 
+        fn i =>
+           let val (x1, x2) = (f1 i, f2 i)
+           in case (unE x1, unE x2) of
+                (SOME v1, SOME v2) => E(P.If(x,v1,v2))
+              | _ => If(x0,x1,x2)
+           end)
+    | _ =>
+    case (unE x0, unE a1, unE a2) of
+      (SOME x, SOME a1, SOME a2) => E(P.If(x,a1,a2))
+    | _ => die "If: expecting branches to be of same kind and cond to be an expression"
+
+fun isEven i =
+    let open P infix ==
+    in E(i == (I 2 * (i / I 2)))
+    end
+
+fun interlv t1 t2 =
+    case (unV t1, unV t2) of
+      (SOME(n1,f1), SOME(n2,f2)) =>
+      V(P.*(P.I 2, P.min n1 n2), fn i => If(isEven i, f1 (P./(i,P.I 2)), f2 (P./(i,P.I 2))))
+    | _ => die "interlv: expecting vectors"
+
+fun double v = interlv v v
 
 fun memoize t =
     case unV t of
@@ -172,9 +208,9 @@ fun memoize t =
           val f = fn i => case unE (f i) of 
                             SOME e => e 
                           | _ => die "memoize"
-          val p = name := Alloc n >>
-                  For(n, fn i => (name,i) ::= f i)
-      in (V(n, fn i => E(Subs(name,i))), p)
+          fun ssT ss = (name := Alloc n) ::
+                       (For(n, fn i => [(name,i) ::= f i]) ss)
+      in (V(n, fn i => E(Subs(name,i))), ssT)
       end
     | _ => die "memoize: expecting vector"
 
@@ -185,9 +221,9 @@ fun foldl f e v =
          let val a = Name.new ()
              fun body i =
                  runM0 (f(g i,E($ a))) (fn e => a := e)
-             val p = a := e >>
-                     For(n, body)
-         in (E($ a),p)
+             fun ssT ss = (a := e) ::
+                          For(n, body) ss
+         in (E($ a),ssT)
          end
        | (NONE, SOME (n,g)) =>
          (case unI n of
@@ -208,28 +244,14 @@ fun foldr f e v =
           val n0 = Name.new ()                   
           fun body i =
               runM0 (f(g ($ n0 - i),E($ a))) (fn e => a := e)
-          val p = n0 := n - I 1 >>
-                  a := e >>
-                  For(n, body)
-      in (E($ a),p)
+          fun ssT ss =
+              (n0 := n - I 1) ::
+              (a := e) ::
+              For(n, body) ss
+      in (E($ a),ssT)
       end
   | (NONE, _) => die "foldr: expecting expression as accumulator"
   | (_, NONE) => die "foldr: expecting vector to iterate over"
-
-fun If(x0,a1,a2) =
-    case (unE x0, unV a1, unV a2) of
-      (SOME x, SOME (n1,f1), SOME (n2,f2)) =>
-      V(P.If(x,n1,n2), 
-        fn i =>
-           let val (x1, x2) = (f1 i, f2 i)
-           in case (unE x1, unE x2) of
-                (SOME v1, SOME v2) => E(P.If(x,v1,v2))
-              | _ => If(x0,x1,x2)
-           end)
-    | _ =>
-    case (unE x0, unE a1, unE a2) of
-      (SOME x, SOME a1, SOME a2) => E(P.If(x,a1,a2))
-    | _ => die "If: expecting branches to be of same kind and cond to be an expression"
                       
 fun concat v1 v2 =
     case (unV v1, unV v2) of
