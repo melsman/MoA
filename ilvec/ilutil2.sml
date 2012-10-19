@@ -41,15 +41,11 @@ structure ILUtil : ILUTIL = struct
         Var n => (case lookup E n of
                     SOME v => v
                   | NONE => die("lookup: " ^ Name.pr n))
-      | Int i => IntV i
+      | I i => IntV i
       | T => BoolV true
       | F => BoolV false
       | Binop(binop,e1,e2) => evalBinOp binop (eval E e1, eval E e2)
       | Unop(unop,e1) => evalUnOp unop (eval E e1)
-      | App (e1,e2) =>
-        (case eval E e1 of
-           FunV f => f (eval E e2)
-         | _ => die "eval.expecting function for function application")        
       | Subs(n,e1) =>
         (case eval E e1 of
            IntV i => (case lookup E n of
@@ -59,7 +55,7 @@ structure ILUtil : ILUTIL = struct
                          | NONE => die "eval.Subs.array value not initialized")                       
                       | _ => die("eval.Subs.lookup: " ^ Name.pr n))
          | _ => die "eval.Subs.expecting integer")
-      | Alloc e1 =>
+      | Alloc (t,e1) =>
         (case eval E e1 of
            IntV n => ArrV(Vector.tabulate(n,fn _ => ref NONE))
          | _ => die "eval.Alloc.expecting integer")
@@ -68,21 +64,22 @@ structure ILUtil : ILUTIL = struct
            BoolV b => eval E (if b then e1 else e2)
          | _  => die "eval.If.expecting boolean")
 
-  fun evalS E (s: Stmt) : Env =
+  fun evalS E (s: Stmt) rn : Env =
       case s of
         For (e, f) =>
         (case eval E e of
            IntV n =>
-           let val name = Name.new ()
+           let val name = Name.new Type.Int
                val ss = f (Var name)
            in iter (fn (i,E) => 
                        let val E = add E (name,IntV i)
-                       in evalSS E ss
+                       in evalSS E ss rn
                        end) E (0,n-1)
            end
          | _ => die "For")
-      | Ret e => add E (Name.result, eval E e)
+      | Ret e => add E (rn, eval E e)
       | Assign (n,e) => add E (n, eval E e)
+      | Decl (n,e) => add E (n, eval E e)
       | AssignArr (n,i,e) =>
         (case eval E i of
            IntV i =>
@@ -98,8 +95,8 @@ structure ILUtil : ILUTIL = struct
       | Free n => die "Free.unimplemented"
       | Nop => E
 
-  and evalSS E ss =
-      List.foldl (fn (s,E) => evalS E s) E ss
+  and evalSS E ss rn =
+      List.foldl (fn (s,E) => evalS E s rn) E ss
 
   val emptyEnv = []
 
@@ -140,13 +137,12 @@ structure ILUtil : ILUTIL = struct
   fun pp e =
       case e of
         Var n => %(Name.pr n)
-      | Int i => %(Int.toString i)
+      | I i => %(Int.toString i)
       | Binop(binop,e1,e2) => 
         if infi binop then par (pp e1 %% % (ppB binop) %% pp e2)
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
       | Unop(unop,e1) => %(ppU unop) %% (pp e1)
-      | App (e1,e2) => pp e1 %% par(pp e2)
-      | Alloc e1 => %"alloc" %% par(pp e1)
+      | Alloc (_,e1) => %"alloc" %% par(pp e1)
       | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
@@ -161,7 +157,7 @@ structure ILUtil : ILUTIL = struct
   and ppS s =
       case s of
         For (e, f) =>
-        let val n = Name.new()
+        let val n = Name.new Type.Int
             val ns = Name.pr n 
         in %("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
             pp e %% %("; " ^ ns ^ "++) {") %% 
@@ -169,6 +165,7 @@ structure ILUtil : ILUTIL = struct
             %$ %% %"}"
         end
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
+      | Decl (n,e) => %(Type.prType(Name.typeOf n)) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
       | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
       | Nop => %""
       | Free n => die "Free.unimplemented"
@@ -177,17 +174,63 @@ structure ILUtil : ILUTIL = struct
   fun ppSS n ss = ropeToString n (%$ %% ppSS0 ss)
   fun ppExp e = ropeToString 0 (pp e)
 
-  fun ppFunction name argname ss =
+  fun ppFunction name (ta,tb) argname ss =
       let val r =
-              %name %% par(%(Name.pr argname)) %% %" " %% cpar(
+              %(Type.prType tb) %% %" " %%
+              %name %% par(%(Type.prType ta) %% %" " %% %(Name.pr argname)) %% %" " %% cpar(
               %>(ppSS0 ss) %% %$) %% %$
       in ropeToString 0 r
       end
 
   fun ppValue v = 
       case v of
-      IntV i => Int.toString i
-    | BoolV b => Bool.toString b
-    | FunV _ => "fn"
-    | ArrV v => "vec"
+        IntV i => Int.toString i
+      | BoolV b => Bool.toString b
+      | ArrV v => "vec"
+
+  fun resTypeBinop binop =
+      case binop of
+        Add => Type.Int
+      | Sub => Type.Int
+      | Mul => Type.Int
+      | Divv => Type.Int
+      | Min => Type.Int
+      | Max => Type.Int
+      | Lt => Type.Bool
+      | Lteq => Type.Bool
+      | Eq => Type.Bool
+
+  fun resTypeUnop Neg = Type.Int
+
+  fun typeExp e =
+      case e of
+        Var n => Name.typeOf n
+      | I n => Type.Int
+      | T => Type.Bool
+      | F => Type.Bool
+      | If (e,e1,e2) =>
+        let val b = typeExp e
+            val t1 = typeExp e1
+            val t2 = typeExp e2
+        in if b <> Type.Bool then
+             die "TypeExp.Error.If: Expecting conditional of type bool"
+           else if t1 <> t2 then
+             die "TypeExp.Error.If: Expecting branches of equal type"
+           else t1
+        end
+      | Subs(n,e) =>
+        let val t = typeExp e
+            val tv = Name.typeOf n
+        in if t <> Type.Int then
+             die "TypeExp.Error.Subs: Expecting index expression of type int"
+           else Type.vecElem tv
+        end
+      | Alloc(t,e0) =>
+        let val t0 = typeExp e0
+        in if t0 <> Type.Int then
+             die "TypeExp.Error.Alloc: Expecting count expression of type int"
+           else t
+        end
+      | Binop(binop,e1,e2) => resTypeBinop binop
+      | Unop(unop,e) => resTypeUnop unop
 end

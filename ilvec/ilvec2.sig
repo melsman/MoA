@@ -1,17 +1,11 @@
 signature ILVEC = sig
+  include TYPE
   type 'a M    (* monad encapsulating program construction *)
   val >>=      : 'a M * ('a -> 'b M) -> 'b M
   val ret      : 'a -> 'a M
 
-  type Int and Bool and 'a Vec     (* Types *)
-
-  type 'a T                        (* Type constructors *)
-  val Int      : Int T
-  val Bool     : Bool T
-  val Vec      : 'a T -> 'a Vec T
-
   (* Terms *)
-  type 'a t                 (* terms *)
+  type 'a t                      (* terms *)
   type 'a v    = 'a Vec t   (* vector terms *)
 
   type INT     = Int t      (* basic terms *)
@@ -55,8 +49,8 @@ signature ILVEC = sig
 
   (* Compiled Programs *)
   type ('a,'b) prog
-  val runM     : 'b t M -> (unit,'b) prog
-  val runF     : ('a t -> 'b t M) -> ('a,'b) prog
+  val runM     : 'b Type.T -> 'b t M -> (unit,'b) prog
+  val runF     : 'a Type.T * 'b Type.T -> ('a t -> 'b t M) -> ('a,'b) prog
  
   (* Values and Evaluation *)
   type 'a V

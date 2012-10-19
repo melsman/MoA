@@ -8,58 +8,58 @@ open ILmoa infix >>= >> ::= ==
 
 fun qq s = "'" ^ s ^ "'"
 
-fun tstM s e f =
+fun tstM s ty e f =
     tstopt s (fn () => let val M = f()
-                           val p = runM M
+                           val p = runM ty M
                            val v = eval p Uv
                            val result = ppV v
 		       in if result = e then NONE
 			  else SOME (qq result ^ " differs from the expected value " ^ qq e)
 		       end)
 
-fun tstF s f a e =
-    tstopt s (fn () => let val p = runF f
+fun tstF s (ta,tb) f a e =
+    tstopt s (fn () => let val p = runF (ta,tb) f
                            val v = eval p a
                            val result = ppV v
 		       in if result = e then NONE
 			  else SOME (qq result ^ " differs from the expected value " ^ qq e)
 		       end)
 
-fun tstmv s e f = tstM s e (ret o f)
+fun tstmv s ty e f = tstM s ty e (ret o f)
 
 val zi = zilde Int
-val _ = tstmv "dim_zilde" "1" (fn () => dim zi)
-val _ = tstmv "dim_scl" "0" (fn () => dim(scl (I 28)))
-val _ = tstmv "dim_vec0" "1" (fn () => dim(vec (empty Int)))
-val _ = tstmv "dim_vec1" "0" (fn () => dim(vec (single (I 3))))
-val _ = tstmv "dim_vec2" "1" (fn () => dim(vec (fromList[I 3,I 2])))
+val _ = tstmv "dim_zilde" Type.Int "1" (fn () => dim zi)
+val _ = tstmv "dim_scl" Type.Int "0" (fn () => dim(scl (I 28)))
+val _ = tstmv "dim_vec0" Type.Int "1" (fn () => dim(vec (empty Int)))
+val _ = tstmv "dim_vec1" Type.Int "0" (fn () => dim(vec (single (I 3))))
+val _ = tstmv "dim_vec2" Type.Int "1" (fn () => dim(vec (fromList[I 3,I 2])))
 
-val _ = tstmv "siz_zilde" "0" (fn () => siz zi)
-val _ = tstmv "siz_scl" "1" (fn () => siz(scl (I 45)))
-val _ = tstmv "siz_vec0" "0" (fn () => siz(vec (empty Int)))
-val _ = tstmv "siz_vec1" "1" (fn () => siz(vec (single(I 3))))
-val _ = tstmv "siz_vec2" "2" (fn () => siz(vec (fromList[I 3,I 2])))
+val _ = tstmv "siz_zilde" Type.Int "0" (fn () => siz zi)
+val _ = tstmv "siz_scl" Type.Int "1" (fn () => siz(scl (I 45)))
+val _ = tstmv "siz_vec0" Type.Int "0" (fn () => siz(vec (empty Int)))
+val _ = tstmv "siz_vec1" Type.Int "1" (fn () => siz(vec (single(I 3))))
+val _ = tstmv "siz_vec2" Type.Int "2" (fn () => siz(vec (fromList[I 3,I 2])))
 
 fun sumv (v : Int v) : INT M = foldl(ret o op +) (I 0) v
 
-val _ = tstmv "shape_zilde_len" "1" (fn () => length(shape zi))
-val _ = tstM "shape_zilde_sum" "0" (fn () => 
-                                       let val mv = zi
-                                           val v = shape mv
-                                       in sumv v
-                                       end)
-val _ = tstmv "shape_scl" "0" (fn () => length(shape(scl (I 45))))
-val _ = tstmv "shape_vec0_len" "1" (fn () => length(shape(vec (empty Int))))
-val _ = tstM "shape_vec0_sum" "0" (fn () => sumv(shape(vec (empty Int))))
-val _ = tstmv "shape_vec1" "0" (fn () => length(shape(vec (single(I 3)))))
-val _ = tstmv "shape_vec2_len" "1" (fn () => length(shape(vec (fromList[I 3,I 2]))))
-val _ = tstM "shape_vec2_sum" "2" (fn () => sumv(shape(vec (fromList[I 3,I 2]))))
+val _ = tstmv "shape_zilde_len" Type.Int "1" (fn () => length(shape zi))
+val _ = tstM "shape_zilde_sum" Type.Int "0" (fn () => 
+                                                let val mv = zi
+                                                    val v = shape mv
+                                                in sumv v
+                                                end)
+val _ = tstmv "shape_scl" Type.Int "0" (fn () => length(shape(scl (I 45))))
+val _ = tstmv "shape_vec0_len" Type.Int "1" (fn () => length(shape(vec (empty Int))))
+val _ = tstM "shape_vec0_sum" Type.Int "0" (fn () => sumv(shape(vec (empty Int))))
+val _ = tstmv "shape_vec1" Type.Int "0" (fn () => length(shape(vec (single(I 3)))))
+val _ = tstmv "shape_vec2_len" Type.Int "1" (fn () => length(shape(vec (fromList[I 3,I 2]))))
+val _ = tstM "shape_vec2_sum" Type.Int "2" (fn () => sumv(shape(vec (fromList[I 3,I 2]))))
 
 infix === =-=
 fun a === b = meq (op ==) a b
 fun a =-= b = eq (op ==) a b
 
-fun tstT s f = tstM s "true" f
+fun tstT s f = tstM s Type.Bool "true" f
 
 val A = vec (fromList[I 1,I 2,I 3,I 4])
 val _ = tstT "rav1" (fn () => rav(scl(I 34)) === scl(I 34))
@@ -186,8 +186,8 @@ val _ = tst "pr4" (fn () => pr (A.reshape [0,2] (A.zilde())) = "[]")
 (*val B = A.vec *)
 *)
 
-val _ = tstF "iota5" (fn v => ret(siz(iota(v + I 2)))) (Iv 5) "7"
-val _ = tstF "red5" (fn v => red (ret o op +) (I 0) (iota v)) (Iv 5) "15"
+val _ = tstF "iota5" (Type.Int, Type.Int) (fn v => ret(siz(iota(v + I 2)))) (Iv 5) "7"
+val _ = tstF "red5" (Type.Int, Type.Int) (fn v => red (ret o op +) (I 0) (iota v)) (Iv 5) "15"
 
 val () = finish()                           
 

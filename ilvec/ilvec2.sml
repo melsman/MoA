@@ -9,25 +9,16 @@ signature TERM = sig
 end
 
 functor ILvec(Term : TERM) 
-        : ILVEC where type 'a t = Term.t0
-                  and type 'a T = string =
+        : ILVEC where type 'a t = Term.t0 =
 struct
 open Term
+open Type
 
 type Value = IL.Value
 structure P = Program
 
 fun die s = raise Fail ("ILvec2." ^ s)
 
-type Int = unit
-type Bool = unit
-type 'a Vec = unit
-
-type 'a T = string
-val Int = "Int"
-val Bool = "Bool"
-fun Vec s = s ^ "[]"
- 
 type 'a t = t0
 type 'a v = t0
 
@@ -76,9 +67,10 @@ in
         SOME n => V(n,f o E)
       | NONE => die "tabulate: expecting expression"
 
-  fun dummy_exp "Int" = I 666
-    | dummy_exp "Bool" = B false
-    | dummy_exp ty = die ("empty: unknown type " ^ ty)
+  fun dummy_exp t =
+      if t = Int then I 666
+      else if t = Bool then B false
+      else die ("empty: unknown type " ^ prType t)
 
   fun empty ty = V(I 0, fn _ => E(dummy_exp ty))
 
@@ -136,21 +128,22 @@ type 'a M = 'a * (P.ss -> P.ss)
 infix >>= >> ::=
 val op := = P.:=
 
-type ('a,'b) prog = Name.t * (P.e -> P.s) -> P.ss
+type ('a,'b) prog = 'a Type.T * 'b Type.T * (Name.t * (P.e -> P.s) -> P.ss)
 
-fun eval (p: ('a,'b) prog) (v: 'a V) : 'b V =
-    let val name_arg = Name.new ()
+fun eval ((ta,tb,p): ('a,'b) prog) (v: 'a V) : 'b V =
+    let val name_arg = Name.new ta
         val ss = p (name_arg, P.Ret)
-        val () = print (ILUtil.ppFunction "kernel" name_arg ss)
+        val () = print (ILUtil.ppFunction "kernel" (ta,tb) name_arg ss)
 (*
         val () = print ("Program(" ^ Name.pr name_arg ^ ") {" ^ 
                         ILUtil.ppProgram 1 program ^ "\n}\n")
 *)
+        val name_res = Name.new tb
         val env0 = ILUtil.add ILUtil.emptyEnv (name_arg,v)
-        val env = ILUtil.evalSS env0 ss      
-    in case ILUtil.lookup env Name.result of
+        val env = ILUtil.evalSS env0 ss name_res      
+    in case ILUtil.lookup env name_res of
          SOME v => v
-       | NONE => die ("Error finding '" ^ Name.pr Name.result ^ 
+       | NONE => die ("Error finding '" ^ Name.pr name_res ^ 
                       "' in result environment for evaluation of\n" ^
                       ILUtil.ppSS 0 ss)
     end
@@ -158,19 +151,25 @@ fun eval (p: ('a,'b) prog) (v: 'a V) : 'b V =
 fun (v,ssT) >>= f = let val (v',ssT') = f v in (v', fn ss => ssT(ssT' ss)) end
 fun ret v = (v, fn ss => ss)
 
-fun runF (f: 'a t -> 'b t M) (n0,k) =
-    let val (e,ssT) = f (E(IL.Var n0))
-    in case unE e of
-         SOME e => ssT [k e]
-       | NONE => die "runM: expecting expression"
-    end
+fun runF (ta,tb) (f: 'a t -> 'b t M) =
+    (ta,
+     tb,
+     fn (n0,k) =>
+        let val (e,ssT) = f (E(IL.Var n0))
+        in case unE e of
+             SOME e => ssT [k e]
+           | NONE => die "runM: expecting expression"
+        end)
 
 fun runM0 (e,ssT) k =
     case unE e of
       SOME e => ssT [k e]
     | NONE => die "runM: expecting expression"
 
-fun runM (e,ssT) (_,k) = runM0 (e,ssT) k
+fun runM ta (e,ssT) =
+  (Type.Int,
+   ta,
+   fn (_,k) => runM0 (e,ssT) k)
 
 fun If(x0,a1,a2) =
     case (unE x0, unV a1, unV a2) of
@@ -204,11 +203,15 @@ fun memoize t =
     case unV t of
       SOME (n,f) =>
       let open P
-          val name = Name.new ()
+          val ty = ILUtil.typeExp (case unE (f(I 0)) of
+                                     SOME e => e
+                                   | NONE => die "memoize.ty")
+          val tyv = Type.Vec ty
+          val name = Name.new tyv
           val f = fn i => case unE (f i) of 
                             SOME e => e 
                           | _ => die "memoize"
-          fun ssT ss = (name := Alloc n) ::
+          fun ssT ss = Decl(name, Alloc(tyv,n)) ::
                        (For(n, fn i => [(name,i) ::= f i]) ss)
       in (V(n, fn i => E(Subs(name,i))), ssT)
       end
@@ -218,10 +221,11 @@ fun foldl f e v =
     let open P
     in case (unE e, unV v) of
          (SOME e, SOME (n,g)) =>
-         let val a = Name.new ()
+         let val ty = ILUtil.typeExp e
+             val a = Name.new ty
              fun body i =
                  runM0 (f(g i,E($ a))) (fn e => a := e)
-             fun ssT ss = (a := e) ::
+             fun ssT ss = Decl(a, e) ::
                           For(n, body) ss
          in (E($ a),ssT)
          end
@@ -240,13 +244,14 @@ fun foldr f e v =
     case (unE e, unV v) of
       (SOME e, SOME (n,g)) =>
       let open P
-          val a = Name.new ()
-          val n0 = Name.new ()                   
+          val ty = ILUtil.typeExp e
+          val a = Name.new ty
+          val n0 = Name.new Type.Int                   
           fun body i =
               runM0 (f(g ($ n0 - i),E($ a))) (fn e => a := e)
           fun ssT ss =
-              (n0 := n - I 1) ::
-              (a := e) ::
+              Decl(n0, n - I 1) ::
+              Decl(a, e) ::
               For(n, body) ss
       in (E($ a),ssT)
       end
