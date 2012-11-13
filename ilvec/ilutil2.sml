@@ -23,17 +23,31 @@ structure ILUtil : ILUTIL = struct
       | NONE => NONE
 
   fun evalBinOp Add (IntV i1,IntV i2) = IntV(i1+i2)
+    | evalBinOp Add (DoubleV i1,DoubleV i2) = DoubleV(i1+i2)
     | evalBinOp Sub (IntV i1,IntV i2) = IntV(i1-i2)
+    | evalBinOp Sub (DoubleV i1,DoubleV i2) = DoubleV(i1-i2)
     | evalBinOp Mul (IntV i1,IntV i2) = IntV(i1*i2)
+    | evalBinOp Mul (DoubleV i1,DoubleV i2) = DoubleV(i1*i2)
     | evalBinOp Divv (IntV i1,IntV i2) = IntV(i1 div i2)
+    | evalBinOp Divv (DoubleV i1,DoubleV i2) = DoubleV(i1 / i2)
+    | evalBinOp Modv (IntV i1,IntV i2) = IntV(i1 mod i2)
+    | evalBinOp Modv (DoubleV i1,DoubleV i2) = die "evalBinOp.mod double not implemented"
     | evalBinOp Min (IntV i1,IntV i2) = IntV(if i1 < i2 then i1 else i2)
+    | evalBinOp Min (DoubleV i1,DoubleV i2) = DoubleV(if i1 < i2 then i1 else i2)
     | evalBinOp Max (IntV i1,IntV i2) = IntV(if i1 > i2 then i1 else i2)
+    | evalBinOp Max (DoubleV i1,DoubleV i2) = DoubleV(if i1 > i2 then i1 else i2)
     | evalBinOp Lt  (IntV i1,IntV i2) = BoolV(i1 < i2)
+    | evalBinOp Lt  (DoubleV i1,DoubleV i2) = BoolV(i1 < i2)
     | evalBinOp Lteq  (IntV i1,IntV i2) = BoolV(i1 <= i2)
+    | evalBinOp Lteq  (DoubleV i1,DoubleV i2) = BoolV(i1 <= i2)
     | evalBinOp Eq  (IntV i1,IntV i2) = BoolV(i1 = i2)
+    | evalBinOp Eq  (DoubleV i1,DoubleV i2) = BoolV(Real.==(i1,i2))
     | evalBinOp _ _ = die "evalBinOp"
         
-  fun evalUnOp Neg (IntV i1) = IntV(~i1)
+  fun evalUnOp Neg (IntV i) = IntV(~i)
+    | evalUnOp Neg (DoubleV d) = DoubleV(~d)
+    | evalUnOp I2D (IntV i) = DoubleV(real i)
+    | evalUnOp D2I (DoubleV d) = (IntV(Real.trunc d))
     | evalUnOp _ _ = die "evalUnOp"
 
   fun eval (E:Env) (e:Exp) : Value =
@@ -42,6 +56,7 @@ structure ILUtil : ILUTIL = struct
                     SOME v => v
                   | NONE => die("lookup: " ^ Name.pr n))
       | I i => IntV i
+      | D d => DoubleV d
       | T => BoolV true
       | F => BoolV false
       | Binop(binop,e1,e2) => evalBinOp binop (eval E e1, eval E e2)
@@ -124,20 +139,34 @@ structure ILUtil : ILUTIL = struct
     | ppB Sub = "-"
     | ppB Mul = "*"
     | ppB Divv = "/"
+    | ppB Modv = "%"
     | ppB Min = "min"
     | ppB Max = "max"
     | ppB Lt = "<"
     | ppB Lteq = "<="
     | ppB Eq = "=="
 
-  fun infi x = List.exists (fn y => x = y) [Add,Sub,Mul,Divv,Lt,Lteq,Eq]
+  fun infi x = List.exists (fn y => x = y) [Add,Sub,Mul,Divv,Modv,Lt,Lteq,Eq]
 
   fun ppU Neg = "-"
+    | ppU I2D = "i2d"
+    | ppU D2I = "d2i"
+
+  fun pp_int i = if i < 0 then "-" ^ pp_int (~i)
+                 else Int.toString i
+
+  fun pp_double d =
+      if d < 0.0 then "-" ^ pp_double (~d)
+      else let val s = Real.toString d
+           in if CharVector.exists (fn c => c = #".") s then s
+              else s ^ ".0"
+           end
 
   fun pp e =
       case e of
         Var n => %(Name.pr n)
-      | I i => %(Int.toString i)
+      | I i => %(pp_int i)
+      | D d => %(pp_double d)
       | Binop(binop,e1,e2) => 
         if infi binop then par (pp e1 %% % (ppB binop) %% pp e2)
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
@@ -184,7 +213,8 @@ structure ILUtil : ILUTIL = struct
 
   fun ppValue v = 
       case v of
-        IntV i => Int.toString i
+        IntV i => pp_int i
+      | DoubleV d => pp_double d
       | BoolV b => Bool.toString b
       | ArrV v => "vec"
 
@@ -194,6 +224,7 @@ structure ILUtil : ILUTIL = struct
       | Sub => Type.Int
       | Mul => Type.Int
       | Divv => Type.Int
+      | Modv => Type.Int
       | Min => Type.Int
       | Max => Type.Int
       | Lt => Type.Bool
@@ -201,11 +232,14 @@ structure ILUtil : ILUTIL = struct
       | Eq => Type.Bool
 
   fun resTypeUnop Neg = Type.Int
+    | resTypeUnop I2D = Type.Double
+    | resTypeUnop D2I = Type.Int
 
   fun typeExp e =
       case e of
         Var n => Name.typeOf n
       | I n => Type.Int
+      | D d => Type.Double
       | T => Type.Bool
       | F => Type.Bool
       | If (e,e1,e2) =>

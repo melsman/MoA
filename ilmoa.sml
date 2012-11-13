@@ -20,12 +20,16 @@ structure ILvec = ILvec(Term)
 open ILvec
 open Term
 
+infix >>= ==
+
 structure Shape : sig
   type t = t0
   val fromVec  : INT v -> t
   val toVec    : t -> Int v
   val concat   : t -> t -> t
   val single   : INT -> t
+  val safesingle : INT -> t
+  val singlez  : t
   val empty    : t
   val product  : t -> INT M
   val length   : t -> INT
@@ -40,9 +44,11 @@ end = struct
   type t = t0
   val toVec    = fn x => x
   val fromVec  = shapify
-  val concat   = fn x => fn y => shapify(concat x y)
-  val single   = single
+  val concat   = shapeconcat
   val empty    = empty Int
+  val singlez  = single (I 0)
+  val safesingle = single
+  val single   = fn n => If(n == I 1,empty,single n)
   val product  : t -> INT M = foldl (ret o op *) (I 1)
   val length   : t -> INT = length
   val dr       : INT -> t -> t = dr
@@ -55,18 +61,20 @@ type 'a m = 'a MVec t
 
 fun vec00 n c =
     let fun default() = MV(Shape.single n, c)
+        fun safesingle() = MV(Shape.safesingle n,c)
     in case unE n of
          SOME n =>
          (case P.unI n of
             SOME 1 => MV(Shape.empty, c)
-          | _ => default())
+          | SOME _ => safesingle()
+          | NONE => default())
        | NONE => default()
     end
 
 fun vec0 c = vec00 (length c) c
-fun vec c = vec0 (Shape.fromVec c)
+fun vec c = vec0 c
 fun scl v = MV(Shape.empty, single v)
-fun zilde ty = MV(Shape.single (I 0), empty ty)
+fun zilde ty = MV(Shape.singlez, empty ty)
 fun iota n = vec00 n (tabulate n (fn x => x + (I 1)))
 fun shape0 t =
     case unMV t of
@@ -92,6 +100,8 @@ fun rav t =
       SOME(_,c) => vec0 c
     | NONE => die "rav: expecting moa array"
 
+val rav0 = snd
+
 fun mif (x,a1,a2) =
     case (unMV a1, unMV a2) of
       (SOME (f1,v1), SOME (f2,v2)) =>
@@ -100,10 +110,9 @@ fun mif (x,a1,a2) =
 
 fun zildeOf a =
     case unMV a of
-      SOME(f,v) => MV(Shape.single (I 0), emptyOf v)
+      SOME(f,v) => MV(Shape.singlez, emptyOf v)
     | NONE => die "zildeOf: expecting moa array"
 
-infix >>= ==
 fun reshape0 (f: Int v) (a: 'a m) : 'a m M =
     Shape.product f >>= (fn p =>
       ret(mif(p == siz a, MV(f,snd a), zildeOf a)))
@@ -184,6 +193,38 @@ fun scan g e t =
     case unMV t of
       SOME (f,c) => scan0 g e c >>= (fn c' => ret(MV(f,c')))
     | NONE => die "scan: expecting moa array"
+
+fun pad1 s = If(length s == I 0, single (I 1), s) 
+fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
+    case (unMV t1, unMV t2) of
+      (SOME (s1,d1), SOME (s2,d2)) =>
+      let val s1 = pad1 s1
+          val s2 = pad1 s2                   
+          val s1' = Shape.dr (I 1) s1
+          val s2' = Shape.dr (I 1) s2
+          val v1 = Shape.tk (I 1) s1
+          val v2 = Shape.tk (I 1) s2
+          val x = map2 (op +) v1 v2
+          val mv = MV(Shape.concat x s1',
+                      concat d1 d2)
+      in Shape.eq s1' s2' >>= (fn shapeeq =>
+          ret(mif(shapeeq,mv,zildeOf t1)))
+      end
+    | _ => die "catenate: expecting moa arrays"
+
+fun take n (t : 'a m) : 'a m = vec0(tk n (snd t))
+fun drop n (t : 'a m) : 'a m = vec0(dr n (snd t))
+
+fun rrotate n t =
+    case unMV t of
+      SOME(f,d) => MV(f,concat (dr n d) (tk n d))
+    | NONE => die "rrotate: expecting moa array"
+
+fun mem t =
+    case unMV t of
+      SOME(f,d) => 
+      memoize d >>= (fn d => ret (MV(f,d)))
+    | NONE => die "mem: expecting moa array"
 
 (*
   fun stk a b =

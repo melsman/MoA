@@ -44,7 +44,7 @@ val () = tstM "foldr_mem" Type.Int
               let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
               (fn () => memoize e3 >>= (fn e3' => foldr (ret o op +) (I 0) e3'))
 
-val () = tstM "concat" Type.Int
+val () = tstM "concat1" Type.Int
               let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2 + 45) end
               (fn () => memoize (concat e3 e1) >>= (fn e3' => foldr (ret o op +) (I 0) e3'))
 
@@ -54,6 +54,18 @@ val () = tstM "concat2" Type.Int
                         in foldr (ret o op +) (I 0) e4
                         end)
 
+val () = tstM "concat3" Type.Int
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
+              (fn () => let val e = concat e3 (empty Int)
+                        in sum e
+                        end)
+
+val () = tstM "concat4" Type.Int
+              let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
+              (fn () => let val e = concat (empty Int) e3
+                        in sum e
+                        end)
+
 val () = tstM "mat_sum" Type.Int
               let open Int in Int.toString(9*450 div 2)
               (* 9*(10 + 20 + 30 + 40 + 50 + 60 + 70 + 80 + 90) div 2 
@@ -61,7 +73,7 @@ val () = tstM "mat_sum" Type.Int
               end
               (fn () =>
                   let val m1 = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
-                  in foldr (fn (r, a) => foldr (ret o op +) a r) (I 0) m1
+                  in foldl (fn (r, a) => foldl (ret o op +) a r) (I 0) m1
                   end)
 
 val () = tstM "fromList" Type.Int

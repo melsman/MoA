@@ -22,16 +22,24 @@ fun die s = raise Fail ("ILvec2." ^ s)
 type 'a t = t0
 type 'a v = t0
 
-type INT     = Int t
+type 'a NUM  = 'a Num t
+type INT     = Int NUM
+type DOUBLE  = Double NUM
 type BOOL    = Bool t
 
 val I : int -> INT = E o P.I
+val D : real -> DOUBLE = E o P.D
 val B : bool -> BOOL = E o P.B
 
 fun binop opr (t1,t2) =
     case (unE t1,unE t2) of
       (SOME t1, SOME t2) => E(opr(t1,t2))
     | _ => die "binop: expecting expressions"
+
+fun unop opr t =
+    case unE t of
+      SOME t => E(opr t)
+    | _ => die "unop: expecting expression"
 
 fun curry f x y = f(x,y)
 fun uncurry f (x,y) = f x y
@@ -69,6 +77,7 @@ in
 
   fun dummy_exp t =
       if t = Int then I 666
+      else if t = Double then D 66.6
       else if t = Bool then B false
       else die ("empty: unknown type " ^ prType t)
 
@@ -97,25 +106,42 @@ in
       case unV t of
         SOME (n,_) => E n
       | NONE => die "length: expecting vector"
+
+  fun singlevalue v t =
+      case unV t of
+        SOME (n,f) => E (P.If(P.==(n,P.I 1),
+                              case unE(f(P.I 0)) of
+                                SOME x => P.==(x,P.I v)
+                              | NONE => die "singlevalue: expecting expression",
+                              P.B false))
+      | NONE => die "singlevalue: expecting vector"
+
+  fun singlezero t = singlevalue 0 t
+  fun singleone t = singlevalue 1 t
 end
 
-val op +  : INT * INT -> INT = binop P.+
-val op -  : INT * INT -> INT = binop P.-
-val op *  : INT * INT -> INT = binop P.*
-val op <  : INT * INT -> BOOL = binop P.<
-val op <= : INT * INT -> BOOL = binop P.<=
-val op == : INT * INT -> BOOL = binop P.==
-val max   : INT -> INT -> INT = curry(binop(uncurry P.max))
-val min   : INT -> INT -> INT = curry(binop(uncurry P.min))
+val op +  : 'a NUM * 'a NUM -> 'a NUM = binop P.+
+val op -  : 'a NUM * 'a NUM -> 'a NUM = binop P.-
+val op *  : 'a NUM * 'a NUM -> 'a NUM = binop P.*
+val op /  : 'a NUM * 'a NUM -> 'a NUM = binop P./
+val op %  : INT * INT -> INT = binop P.%
+val op <  : 'a NUM * 'a NUM -> BOOL = binop P.<
+val op <= : 'a NUM * 'a NUM -> BOOL = binop P.<=
+val op == : 'a NUM * 'a NUM -> BOOL = binop P.==
+val max   : 'a NUM -> 'a NUM -> 'a NUM = curry(binop(uncurry P.max))
+val min   : 'a NUM -> 'a NUM -> 'a NUM = curry(binop(uncurry P.min))
+val ~     : 'a NUM -> 'a NUM = unop P.~
+val i2d   : INT -> DOUBLE = unop P.i2d
+val d2i   : DOUBLE -> INT = unop P.d2i
 
 (* Values and Evaluation *)
 type 'a V    = IL.Value
 val Iv       = IL.IntV
-val unIv     = fn IL.IntV i => i
-                | _ => die "unIv"
+val unIv     = fn IL.IntV i => i | _ => die "unIv"
+val Dv       = IL.DoubleV
+val unDv     = fn IL.DoubleV d => d | _ => die "unDv"
 val Bv       = IL.BoolV
-val unBv     = fn IL.BoolV b => b
-                | _ => die "unBv"
+val unBv     = fn IL.BoolV b => b | _ => die "unBv"
 fun Vv vs    = IL.ArrV(Vector.fromList(List.map (fn v => ref(SOME v)) vs))
 fun vlist v = Vector.foldl (op ::) nil v
 val unVv     = fn IL.ArrV v => List.map (fn ref (SOME a) => a
@@ -133,6 +159,7 @@ type ('a,'b) prog = 'a Type.T * 'b Type.T * (Name.t * (P.e -> P.s) -> P.ss)
 fun eval ((ta,tb,p): ('a,'b) prog) (v: 'a V) : 'b V =
     let val name_arg = Name.new ta
         val ss = p (name_arg, P.Ret)
+        val (ss,_) = P.se_ss nil ss
         val () = print (ILUtil.ppFunction "kernel" (ta,tb) name_arg ss)
 (*
         val () = print ("Program(" ^ Name.pr name_arg ^ ") {" ^ 
@@ -217,17 +244,39 @@ fun memoize t =
       end
     | _ => die "memoize: expecting vector"
 
+fun For'(n,e,body) =
+    let open P
+    in case unI n of
+         SOME 0 => (E e, fn ss => ss)
+       | SOME 1 => 
+         let val ty = ILUtil.typeExp e
+             val a = Name.new ty
+             fun f e = Decl(a, e)
+         in case body e f (I 0) of
+              [s] => 
+              (case unDecl s of
+                 SOME (a',e) => if a' = a then (E e, fn ss => ss)
+                                else die "For': weird"
+               | NONE => (E($ a), fn ss => s :: ss))
+            | ss0 => (E($ a), fn ss => ss0 @ ss)
+         end
+       | _ => 
+         let val ty = ILUtil.typeExp e
+             val a = Name.new ty
+             fun f e = a := e
+         in (E($ a), fn ss => 
+                        Decl(a, e) ::
+                        For(n, body ($ a) f) ss)
+         end
+    end
+
 fun foldl f e v =
     let open P
     in case (unE e, unV v) of
          (SOME e, SOME (n,g)) =>
-         let val ty = ILUtil.typeExp e
-             val a = Name.new ty
-             fun body i =
-                 runM0 (f(g i,E($ a))) (fn e => a := e)
-             fun ssT ss = Decl(a, e) ::
-                          For(n, body) ss
-         in (E($ a),ssT)
+         let fun body e h i =
+                 runM0 (f(g i,E e)) h
+         in For'(n,e,body)
          end
        | (NONE, SOME (n,g)) =>
          (case unI n of
@@ -239,21 +288,14 @@ fun foldl f e v =
           | _ => die "foldl: expecting expression as accumulator or index vector to be constant-sized")
        | (_, NONE) => die "foldl: expecting vector to iterate over"
     end
-     
+
 fun foldr f e v =
     case (unE e, unV v) of
       (SOME e, SOME (n,g)) =>
       let open P
-          val ty = ILUtil.typeExp e
-          val a = Name.new ty
-          val n0 = Name.new Type.Int                   
-          fun body i =
-              runM0 (f(g ($ n0 - i),E($ a))) (fn e => a := e)
-          fun ssT ss =
-              Decl(n0, n - I 1) ::
-              Decl(a, e) ::
-              For(n, body) ss
-      in (E($ a),ssT)
+          fun body e h i =
+              runM0 (f(g (n - I 1 - i),E e)) h
+      in For'(n,e,body)
       end
   | (NONE, _) => die "foldr: expecting expression as accumulator"
   | (_, NONE) => die "foldr: expecting vector to iterate over"
@@ -292,16 +334,6 @@ fun flattenOf v0 v =
                 assert_vector "flatten_v" v;
                 ret(concat a v))) (emptyOf v0) v)
 
-
-(*
-  fun flatten v =
-      let val m = foldl (fn (a,l) => length a + l) (I 0) v >>= (fn len =>
-	          (foldr (fn ((n,f),g) =>
-		          fn i => If(i < n, f i, g (i-n))) emp v >>= (fn f =>
-      in (len,f)
-      end
-*)
-
 infix ==
 fun eq f v1 v2 =
     let val v = map2 f v1 v2
@@ -337,9 +369,14 @@ fun shapify t =
                  handle NonImmed => t *)
          end
        | NONE => t)
-    | NONE => t
+    | NONE => die "shapify: expecting vector"
 
-(*val shapify = fn x => x*)
+  fun shapeconcat x y =
+      If(singleone x,y,If(singlezero x,x,If(singlezero y,y,concat x y)))
+
+  fun merge v n t =
+      concat (tk (n - I 1) v)
+      (concat (single t) (dr (n + I 1) v))
 
 end
 
@@ -348,31 +385,15 @@ end
 fun list a = foldr (op ::) nil a
 	
 fun fmap a v = map (fn f => f v) a
-fun single x = fromList [x]
 
 fun eq beq (a1,a2) =
     length a1 = length a2 andalso
     (foldl(fn (x,a) => x andalso a) true 
 	  (map2 (fn x => fn y => beq(x,y)) a1 a2))
 
-fun concat (n1,f1) (n2,f2) =
-    (n1+n2, fn i => if i < n1 then f1 i else f2 (i-n1))
-
-fun flatten v =
-    let val len = foldl (fn (a,l) => length a + l) 0 v
-	val f = foldr (fn ((n,f),g) =>
-		       fn i => if i < n then f i else g (i-n)) emp v
-    in (len,f)
-    end
-
 fun sub ((n,f),i) =
     if i > n-1 orelse i < 0 then raise Subscript
     else f i
-
-fun memoize (n,f) =
-    let val v = Vector.tabulate(n,f)
-    in (n, fn i => Unsafe.Vector.sub(v,i))
-    end
 
 *)
 structure Term = struct

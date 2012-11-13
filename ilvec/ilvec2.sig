@@ -6,21 +6,29 @@ signature ILVEC = sig
 
   (* Terms *)
   type 'a t                      (* terms *)
-  type 'a v    = 'a Vec t   (* vector terms *)
+  type 'a v    = 'a Vec t        (* vector terms *)
 
-  type INT     = Int t      (* basic terms *)
+  type 'a NUM  = 'a Num t        (* basic term types *)
+  type INT     = Int NUM
+  type DOUBLE  = Double NUM
   type BOOL    = Bool t
 
   val I        : int -> INT
+  val D        : real -> DOUBLE
   val B        : bool -> BOOL
-  val +        : INT * INT -> INT
-  val -        : INT * INT -> INT
-  val *        : INT * INT -> INT
-  val <        : INT * INT -> BOOL
-  val <=       : INT * INT -> BOOL
-  val ==       : INT * INT -> BOOL
-  val max      : INT -> INT -> INT
-  val min      : INT -> INT -> INT
+  val +        : 'a NUM * 'a NUM -> 'a NUM
+  val -        : 'a NUM * 'a NUM -> 'a NUM
+  val *        : 'a NUM * 'a NUM -> 'a NUM
+  val /        : 'a NUM * 'a NUM -> 'a NUM
+  val %        : INT * INT -> INT
+  val <        : 'a NUM * 'a NUM -> BOOL
+  val <=       : 'a NUM * 'a NUM -> BOOL
+  val ==       : 'a NUM * 'a NUM -> BOOL
+  val max      : 'a NUM -> 'a NUM -> 'a NUM
+  val min      : 'a NUM -> 'a NUM -> 'a NUM
+  val ~        : 'a NUM -> 'a NUM
+  val i2d      : INT -> DOUBLE
+  val d2i      : DOUBLE -> INT
   val If       : BOOL * 'a t * 'a t -> 'a t
   val empty    : 'a T -> 'a v
   val emptyOf  : 'a v -> 'a v
@@ -44,8 +52,19 @@ signature ILVEC = sig
   val flatten  : 'a T -> 'a Vec v -> 'a v M
   val flattenOf  : 'a v -> 'a Vec v -> 'a v M
 
-  val shapify  : Int v -> Int v  (* eliminate 1's and reduce to [0] if the
-                                  * argument contains a 0 *)
+  val merge    : 'a v -> INT -> 'a t -> 'a v
+
+(*
+  val singlezero : 'a v -> BOOL
+  val singleone : 'a v -> BOOL
+*)
+
+  val shapify  : Int Num v -> Int Num v  (* eliminate 1's and reduce to [0] if the
+                                          * argument contains a 0 *)
+
+  val shapeconcat : Int Num v -> Int Num v -> Int Num v
+  (* [shapeconcat v v'] assumes v' is not [1]; this property needs to be established by
+   * the caller! *)
 
   (* Compiled Programs *)
   type ('a,'b) prog
@@ -54,8 +73,10 @@ signature ILVEC = sig
  
   (* Values and Evaluation *)
   type 'a V
-  val Iv       : int -> Int V
-  val unIv     : Int V -> int
+  val Iv       : int -> Int Num V
+  val unIv     : Int Num V -> int
+  val Dv       : real -> Double Num V
+  val unDv     : Double Num V -> real
   val Bv       : bool -> Bool V
   val unBv     : Bool V -> bool
   val Vv       : 'a V list -> 'a Vec V
