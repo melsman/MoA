@@ -7,14 +7,14 @@ modules in Standard ML.
    implementations are included, including a version based on pull and
    push arrays.
 
- * ``ilvec.mlb``. Implementation of code-generational one-dimensional
+ * `ilvec.mlb`. Implementation of code-generational one-dimensional
    pull arrays. Some support for nested vectors.
 
- * ''moa.mlb''. Implementation of multi-dimensional array
-   calculus. Makes use of ''vec.mlb''.
+ * `moa.mlb`. Implementation of multi-dimensional array
+   calculus. Makes use of `vec.mlb`.
 
- * ''ilmoa.mlb''. Implementation of code-generational
-   multi-dimensional array calculus. Makes use of ''ilvec.mlb''.
+ * `ilmoa.mlb`. Implementation of code-generational
+   multi-dimensional array calculus. Makes use of `ilvec.mlb`.
 
 The "il" versions of the vector and array libraries are
 implementations that generate residual intermediate language "C like"
@@ -24,11 +24,11 @@ the vector and array operations are performed in ML itself.
 
 ## MoA - Multi-dimensional arrays
 
-The ''moa.mlb'' and ''ilmoa.mlb'' libraries provide implementations of
+The `moa.mlb` and `ilmoa.mlb` libraries provide implementations of
 a multi-dimentional array calculus based on the paper:
 
- * G. Hains et L. M. R. Mullin. An algebra of multidimensional
-   arrays. Publication 783, DIRO, Departement d'Informatique et de
+ * __G. Hains et L. M. R. Mullin__. _An algebra of multidimensional
+   arrays_. Publication 783, DIRO, Departement d'Informatique et de
    Recherche Operationnelle, Universite de Montreal, 1991.
 
 ### One-dimensional vector implementations
