@@ -264,9 +264,9 @@ val _ = tstF "rrotate3" (Type.Int, Type.Double)
              (fn v => 
                  let val a = iota v
                      val a = mmap i2d a
-                 in rrotate (I 1) a >>= (fn b =>
+                 in rrotate (I 1) a >>= (fn b =>            (* 5 1 2 3 4 *)
                     red (ret o sub1) (D 0.0) b)
-                 end) (Iv 5) "-11.0"
+                 end) (Iv 5) "-5.0"
 
 val _ = tstF "rrotate4" (Type.Int, Type.Int) 
              (fn v => 
@@ -279,9 +279,9 @@ val _ = tstF "rrotate4" (Type.Int, Type.Int)
 fun diff (SIG (*:n*)) (*:n-1*) =
     rrotate (I 1) SIG >>= (fn r => 
       sum Double (op -) SIG r >>= (fn (r' (*:n*)) =>
-      ret (take (siz r' - I 1) r')))
+      ret (drop (I 1) r'))) (* take (siz r' - I 1) r'))) *)
 
-val _ = tstF "diff0" (Type.Int, Type.Int) 
+val _ = tstF "diff0" (Type.Int, Type.Int)
              (fn v => 
                  let val a = iota v
                      val a = mmap i2d a
@@ -301,9 +301,9 @@ val _ = tstF "diff2" (Type.Int, Type.Double)
              (fn v => 
                  let val a = iota v
                      val a = mmap i2d a          (* 1 2 3 4 5 *)   (* 1  2  3  4  5 *)
-                 in diff a >>= (fn b =>                            (* 2  3  4  5  1 *)
-                    red (ret o op +) (D 0.0) b)                    (*-1 -1 -1 -1 *)
-                 end) (Iv 5) "-4.0"
+                 in diff a >>= (fn b =>                            (* 5  1  2  3  4 *)
+                    red (ret o op +) (D 0.0) b)                    (*-4  1  1  1  1 *)
+                 end) (Iv 5) "4.0"
 
 val _ = tstF "diff3" (Type.Int, Type.Int) 
              (fn v => 

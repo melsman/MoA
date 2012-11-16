@@ -112,7 +112,7 @@ following signal processing program:
 fun diff (signal (*:n*)) (*:n-1*) =
     rrotate (I 1) signal >>= (fn r => 
       sum Double (op -) signal r >>= (fn (r' (*:n*)) =>
-      ret (take (siz r' - I 1) r')))
+      ret (drop (I 1) r')))
 fun maxsv s v = mmap (fn x => max x s) v   (* scalar-vector max *)
 fun minsv s v = mmap (fn x => min x s) v   (* scalar-vector min *)
 fun prodsv s v = mmap (fn x => x * s) v    (* scalar-vector multiplication *)
@@ -123,6 +123,13 @@ fun signal (SIG (*:n*)) =
     diff c >>= (fn (v (*:n*)) => 
     divv v (addsv (D 0.01) SIG) >>= (fn tmp =>
     ret(maxsv (D ~50.0) (minsv (D 50.0) (prodsv (D 50.0) tmp))))))
+```
+
+In APL, the code is written
+
+```apl
+diff ← {1↓⍵−¯1⌽⍵}
+logd ← {¯50⌈50⌊50×diff(0,⍵)}
 ```
 
 Here is the driver code for the program:
@@ -144,9 +151,9 @@ Here is the driver code for the program:
 
 The driver code first constructs an array of 1000 elements, processes
 the elements of the array (by calling the `signal` function), and
-finally, sums up the processes values.
+finally, sums up the processed values.
 
-Here is the residual program generated (slightly modified for the example):
+Here is the residual program generated (slightly modified):
 
 ```c
 double kernel() {

@@ -217,7 +217,10 @@ fun drop n (t : 'a m) : 'a m = vec0(dr n (snd t))
 
 fun rrotate n t =
     case unMV t of
-      SOME(f,d) => MV(f,concat (dr n d) (tk n d))
+      SOME(f,d) =>
+      let val sz = length d
+      in MV(f,concat (dr (sz - n) d) (tk (sz - n) d))
+      end
     | NONE => die "rrotate: expecting moa array"
 
 fun mem t =
