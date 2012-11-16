@@ -1,13 +1,39 @@
-## MoA
+## Vectors and Multi-dimensional Arrays
 
-Multi-dimentional array calculus in Standard ML based on the paper:
+This software provides implementations of a series of vector and array
+modules in Standard ML.
 
-G. Hains et L. M. R. Mullin. An algebra of multidimensional arrays. Publication 783, DIRO, Departement 
-d'Informatique et de Recherche Operationnelle, Universite de Montreal, 1991.
+ * ''vec.mlb''. Implementation of one-dimensional vectors. Several
+   implementations are included, including a version based on pull and
+   push arrays.
 
-### Underlying vector implementations
+ * ''ilvec.mlb''. Implementation of code-generational one-dimensional
+   pull arrays. Some support for nested vectors.
 
-The sources contains various basic vector library implementations that
+ * ''moa.mlb''. Implementation of multi-dimensional array
+   calculus. Makes use of ''vec.mlb''.
+
+ * ''ilmoa.mlb''. Implementation of code-generational
+   multi-dimensional array calculus. Makes use of ''ilvec.mlb''.
+
+The "il" versions of the vector and array libraries are
+implementations that generate residual intermediate language "C like"
+code from the specification of the vector or array program. Contrary,
+the non-"il" versions of the libraries are implementations for which
+the vector and array operations are performed in ML itself. 
+
+## MoA - Multi-dimensional arrays
+
+The ''moa.mlb'' and ''ilmoa.mlb'' libraries provide implementations of
+a multi-dimentional array calculus based on the paper:
+
+ * G. Hains et L. M. R. Mullin. An algebra of multidimensional
+   arrays. Publication 783, DIRO, Departement d'Informatique et de
+   Recherche Operationnelle, Universite de Montreal, 1991.
+
+### One-dimensional vector implementations
+
+The sources contain various basic vector library implementations that
 are used as the basis for the MoA realization. The `vec/` folder
 contains three implementations of the `VEC` signature:
 
@@ -27,7 +53,7 @@ contains three implementations of the `VEC` signature:
 The `ilvec/` folder contains two different vector libraries that
 support map fusion and generate residual (C-like) code. The second
 implementation (`il2.mlb`) supports nesting of vectors and thus,
-nested folds. As an example, lets first construct a matrix containing
+nested folds. As an example, let's first construct a matrix containing
 the small multiplification table:
 
 ```sml

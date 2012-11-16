@@ -175,7 +175,7 @@ in
   structure N = NameSet
   fun uses e acc =
       case e of
-         Var n => N.insert n acc
+         Var n => N.insert (acc,n)
        | I _ => acc
        | D _ => acc
        | T => acc
@@ -219,10 +219,10 @@ in
              end
            | _ =>
              let val D = defs_s s
-             in if N.isEmpty (N.intersect D U) then
+             in if N.isEmpty (N.intersect(D,U)) then
                   (ss',U)
                 else
-                  (s :: ss', N.union(uses_s s)(N.difference U D)
+                  (s :: ss', N.union(uses_s s,N.difference(U,D))
              end
         end
 *)
@@ -445,7 +445,7 @@ in
   fun (n,i) ::= e = AssignArr(n, i, e)      
 end
 
-fun defs ss : N.t = 
+fun defs ss : N.set = 
     case ss of
       nil => N.empty
     | s::ss =>
@@ -453,13 +453,13 @@ fun defs ss : N.t =
         IL.Nop => defs ss
       | IL.Ret e => N.empty
       | IL.Free n => defs ss
-      | IL.Decl(n,e) => N.remove n (defs ss)
-      | IL.Assign(n,e) => N.insert n (defs ss)
+      | IL.Decl(n,e) => N.remove (defs ss,n)
+      | IL.Assign(n,e) => N.insert (defs ss,n)
       | IL.AssignArr(n,e0,e) => defs ss
       | IL.For(e,f) =>
         let val n = Name.new Type.Int
-            val ns = N.remove n (defs(f($n)))
-        in N.union ns (defs ss)
+            val ns = N.remove (defs(f($n)),n)
+        in N.union (ns,defs ss)
         end
 
 infix ::=
@@ -470,7 +470,7 @@ type env = (Name.t * info) list
 val env_empty : env = nil
 fun dom E = N.fromList(map #1 E)
 fun env_cut E names =
-    List.filter (fn (n,_) => not(N.member n names)) E
+    List.filter (fn (n,_) => not(N.member (names,n))) E
 
 fun env_lookeq E n =
     case E of nil => NONE

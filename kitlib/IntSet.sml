@@ -1,3 +1,3 @@
 structure IntSet :>
-    MONO_SET where type e = int
+    MONO_SET where type elem = int
     = IntSetImpl

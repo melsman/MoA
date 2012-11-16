@@ -1,36 +1,42 @@
+(** Monomorphic sets.
+
+The MONO_SET signature is a generic interface to monomorphic sets.
+*)
+
 signature MONO_SET = sig
-  type t
-  type e  (* type of elements *)
-
-  val empty      : t
-  val singleton  : e -> t
-
-  val size       : t -> int
-  val isEmpty    : t -> bool
-  val member     : e -> t -> bool
-  val eq         : t -> t -> bool
-
-  val list       : t -> e list
-  val fromList   : e list -> t
-  val addList    : e list -> t -> t
-      (* addList l s : Add elements in list l to s. *)
-
-  val insert     : e -> t -> t
-  val remove     : e -> t -> t
-  val difference : t -> t -> t
-  val intersect  : t -> t -> t
-  val union      : t -> t -> t
-  val partition  : (e -> bool) -> t -> t * t
-
-  val subst      : e * e -> t -> t
-      (* subst (a,b) s : Substitute element b in s with element a. *)
-
-  val fold       : (e -> 'b -> 'b) -> 'b -> t -> 'b
-      (* fold f base s; folds using f over the base element. *)
-
-  val map        : (e -> e) -> t -> t
-      (* map f s; builds a new set by applying f to each element in s *)
-
-  val apply      : (e -> unit) -> t -> unit
-      (* apply f s; applies f to each element of s (in order) *)
+  type set
+  type elem
+  val empty      : set
+  val singleton  : elem -> set
+  val size       : set -> int
+  val isEmpty    : set -> bool
+  val member     : set * elem -> bool
+  val eq         : set * set -> bool
+  val list       : set -> elem list
+  val fromList   : elem list -> set
+  val addList    : set * elem list -> set
+  val insert     : set * elem -> set
+  val remove     : set * elem -> set
+  val difference : set * set -> set
+  val intersect  : set * set -> set
+  val union      : set * set -> set
+  val partition  : (elem -> bool) -> set -> set * set
+  val subst      : set * elem * elem -> set
+  val fold       : (elem * 'b -> 'b) -> 'b -> set -> 'b
+  val map        : (elem -> elem) -> set -> set
+  val app        : (elem -> unit) -> set -> unit
 end
+
+(**
+
+[addList (s,l)] adds elements in list l to s.
+
+[subst (s,a,b)] substitutes element b in s with element a.
+
+[fold f base s] folds using f over the base element.
+
+[map f s] builds a new set by applying f to each element in s.
+
+[app f s] applies f to each element of s (in order).
+
+*)

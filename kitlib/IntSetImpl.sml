@@ -6,15 +6,15 @@ signature INT_SET_IMPL =
 	structure Impl :
 	    sig
 		datatype bal = L | B | R 
-		datatype t = E | N of e * t * t * bal
+		datatype set = E | N of elem * set * set * bal
 	    end 
-	sharing type Impl.t = t
-    end where type e = int
+	sharing type Impl.set = set
+    end where type elem = int
 
 structure IntSetImpl :> INT_SET_IMPL =
   struct
     type e = int
-
+    type elem = e
     fun lt ((a:e),b) = a<b
 
     infix ==
@@ -31,10 +31,11 @@ structure IntSetImpl :> INT_SET_IMPL =
     structure Impl =
 	struct
 	    datatype bal = L | B | R 
-	    datatype t = E | N of e * t * t * bal
+	    datatype set = E | N of elem * set * set * bal
 	end
 
     open Impl
+    type t = set
 
     val empty = E
 
@@ -46,7 +47,7 @@ structure IntSetImpl :> INT_SET_IMPL =
     fun isEmpty E = true
       | isEmpty _ = false
 
-    fun member (i:e) (s:t) : bool =
+    fun member (s:t,i:e) : bool =
       let 
 	fun search E = false
 	  | search(N(i', l, r, _)) = 
@@ -57,19 +58,19 @@ structure IntSetImpl :> INT_SET_IMPL =
 	search s 
       end
 
-    fun eq s1 s2 = 
+    fun eq (s1, s2) = 
       size s1 = size s2 andalso
       (* each member of s1 must be a member of s2 *)
       let
 	fun eq' E = true
 	  | eq' (N(i, l, r, _)) = 
-	    member i s2 andalso eq' l andalso eq' r
+	    member (s2,i) andalso eq' l andalso eq' r
       in
 	eq' s1
       end
 
     exception ALREADYTHERE
-    fun insert k0 t =
+    fun insert (t,k0) =
       let
 	fun ins E = (true, N(k0, E, E, B))
 	  | ins (N(k, l, r, bal)) = 
@@ -158,19 +159,19 @@ structure IntSetImpl :> INT_SET_IMPL =
     fun fromList (l:e list) : t =
       case l of
 	[] => empty
-      | (i::is) => insert i (fromList is)
+      | (i::is) => insert (fromList is,i)
 
-    fun union (s1:t) (s2:t) : t =
+    fun union (s1:t,s2:t) : t =
       case s2 of
 	E => s1
       | N(i, s3, s4, _) => 
-	  union (union (insert i s1) s3) s4
+	  union (union(insert(s1,i),s3),s4)
 
-    fun addList [] s = s
-      | addList (i::ls) s = addList ls (insert i s)
+    fun addList (s,[]) = s
+      | addList (s,i::ls) = addList (insert(s,i), ls)
 
     exception NOTFOUND
-    fun remove k0 t =
+    fun remove (t,k0) =
       let
 	fun balance1 E = impossible "(balance1 on an empty tree)"
 	  | balance1 (N(k,l,r,bal)) =
@@ -295,22 +296,22 @@ structure IntSetImpl :> INT_SET_IMPL =
       end
 
     (* difference : s1 \ s2 *)
-    fun difference (s1:t) (s2:t) : t =
+    fun difference (s1:t,s2:t) : t =
       (* remove items in s2 from s1 *)
       case s1 of
 	E => E
       | _ => (case s2 of
 		E => s1
 	      | N(i, l, r, _) => 
-		  difference (difference (remove i s1) l) r)
+		  difference(difference(remove(s1,i),l),r))
 
-    fun intersect (s1:t) (s2:t) : t =
+    fun intersect (s1:t,s2:t) : t =
       (* Build up a new set from elements in s1 which 
          are also members of s2. *)
       let
 	fun inters E a = a
 	  | inters (N(i,r,l,_)) a =
-	    inters r (inters l (if member i s2 then insert i a 
+	    inters r (inters l (if member (s2,i) then insert (a,i) 
 				else a))
       in
 	inters s1 empty
@@ -321,8 +322,8 @@ structure IntSetImpl :> INT_SET_IMPL =
 	fun g E p = p
 	  | g (N(i,s1,s2,_)) (s3, s4) =
 	    let
-	      val b = if f i then (insert i s3, s4)
-		      else (s3, insert i s4)
+	      val b = if f i then (insert(s3,i), s4)
+		      else (s3, insert(s4,i))
 	    in 
 	      g s2 (g s1 b)
 	    end
@@ -330,13 +331,13 @@ structure IntSetImpl :> INT_SET_IMPL =
 	g s (empty, empty)
       end
 
-    fun fold (f: e -> 'b -> 'b) (e:'b) (t:t) : 'b =
+    fun fold (f: e * 'b -> 'b) (e:'b) (t:t) : 'b =
       let
 	fun fold' (E, a) = a
-	  | fold' (N(i,E,E,_), a) = f i a
-	  | fold' (N(i,s1,E,_), a) = f i (fold' (s1, a))
-	  | fold' (N(i,E,s2,_), a) = fold' (s2, f i a)
-	  | fold' (N(i,s1,s2,_), a) = fold' (s2, (f i (fold' (s1, a))))
+	  | fold' (N(i,E,E,_), a) = f (i, a)
+	  | fold' (N(i,s1,E,_), a) = f (i, fold' (s1, a))
+	  | fold' (N(i,E,s2,_), a) = fold' (s2, f (i, a))
+	  | fold' (N(i,s1,s2,_), a) = fold' (s2, (f (i, (fold' (s1, a)))))
       in
 	fold' (t, e)
       end
@@ -347,10 +348,10 @@ structure IntSetImpl :> INT_SET_IMPL =
     fun map (f:e -> e) (t:t) : t =
       fromList (listmap f (list t))
 
-    fun subst (i':e, i:e) (s:t) : t =
-      if member i s then insert i' (remove i s) else s
+    fun subst (s:t,i':e,i:e) : t =
+      if member (s,i) then insert (remove (s,i),i') else s
 
-    fun apply (f:e -> unit) (s:t) =
+    fun app (f:e -> unit) (s:t) =
       let
 	fun appl E = ()
 	  | appl (N(i,l,r,_)) = (appl l; f i; appl r)

@@ -17,12 +17,12 @@ signature NAT_SET_IMPL =
 	include MONO_SET
 	structure Impl :
 	    sig
-		datatype t = 
+		datatype set = 
 		    empty 
-		  | some of word * t * t
+		  | some of word * set * set
 	    end 
-	sharing type Impl.t = t
-    end where type e = word
+	sharing type Impl.set = set
+    end where type elem = word
 
 structure NatSetImpl :> NAT_SET_IMPL =
   struct 
@@ -44,14 +44,14 @@ structure NatSetImpl :> NAT_SET_IMPL =
       
     structure Impl =
 	struct
-	    datatype t = 
+	    datatype set = 
 		empty 
-	      | some of word * t * t
+	      | some of word * set * set
 	end
     open Impl
 
     type e = word
-
+    type elem = e
     fun member (n, empty) = false
       | member (n, some(w,t1,t2)) =
          if n < bits_word then isb(w,n)
@@ -162,29 +162,25 @@ structure NatSetImpl :> NAT_SET_IMPL =
 
     val size = cardinality
 
-    val member = fn elt => fn set => member(elt,set)
+    val member = fn (set,elt) => member(elt,set)
 
     fun isEmpty empty = true
       | isEmpty _ = false
 
-    fun eq s s' = (s=s')
+    fun eq (s,s') = (s=s')
 
     val list = members
 
     val fromList = natsetof
 
-    fun addList [] set = set
-      | addList (x::xs) set = add(addList xs set, x)
+    fun addList (set,[]) = set
+      | addList (set,x::xs) = add(addList(set,xs), x)
 
-    fun insert elt set = add(set,elt)
+    fun insert (set,elt) = add(set,elt)
 
-    fun remove elt set = delete(set,elt)
+    fun remove (set,elt) = delete(set,elt)
 
-    val difference = fn s1 => fn s2 => difference(s1,s2)
-
-    fun intersect s1 s2 = intersection(s1,s2)
-
-    val union = fn s1 => fn s2 => union(s1,s2)
+    val intersect = intersection
 
     fun partition p t =
       let val t1 = setfilter p t
@@ -192,16 +188,16 @@ structure NatSetImpl :> NAT_SET_IMPL =
       in (t1,t2)
       end
 
-    fun subst (a,b) s = (* subst elem b in s with a! *)
-      if member b s then
+    fun subst (s,a,b) = (* subst elem b in s with a! *)
+      if member(s,b) then
 	add(delete(s,b),a)
       else s
 
-    fun fold f e s = foldset (fn (a,e) => f e a) (e,s)
+    fun fold f e s = foldset (fn (a,e) => f(e,a)) (e,s)
 
     fun app f [] = ()
       | app f (x::xs) = (f x; app f xs)
-    fun apply f s = app f (list s)
+    val app = fn f => fn s => app f (list s)
 
     fun map f = fromList o (mapset f)
 
