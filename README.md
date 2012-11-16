@@ -3,11 +3,11 @@
 This software provides implementations of a series of vector and array
 modules in Standard ML.
 
- * '''vec.mlb'''. Implementation of one-dimensional vectors. Several
+ * `vec.mlb`. Implementation of one-dimensional vectors. Several
    implementations are included, including a version based on pull and
    push arrays.
 
- * ''ilvec.mlb''. Implementation of code-generational one-dimensional
+ * ``ilvec.mlb``. Implementation of code-generational one-dimensional
    pull arrays. Some support for nested vectors.
 
  * ''moa.mlb''. Implementation of multi-dimensional array
