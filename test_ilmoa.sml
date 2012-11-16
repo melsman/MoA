@@ -329,7 +329,6 @@ val _ = tstF "catenate10" (Type.Int, Type.Int)
                  in catenate (scl(D 0.0)) a >>= (fn a => ret (length (shape a)))
                  end) (Iv 5) "1"
 
-fun uncurry f (x, y) = f x y
 fun maxsv s v = mmap (fn x => max x s) v
 fun minsv s v = mmap (fn x => min x s) v
 fun prodsv s v = mmap (fn x => x * s) v

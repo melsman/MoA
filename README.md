@@ -22,16 +22,7 @@ code from the specification of the vector or array program. Contrary,
 the non-"il" versions of the libraries are implementations for which
 the vector and array operations are performed in ML itself. 
 
-## MoA - Multi-dimensional arrays
-
-The `moa.mlb` and `ilmoa.mlb` libraries provide implementations of
-a multi-dimentional array calculus based on the paper:
-
- * __G. Hains et L. M. R. Mullin__. _An algebra of multidimensional
-   arrays_. Publication 783, DIRO, Departement d'Informatique et de
-   Recherche Operationnelle, Universite de Montreal, 1991.
-
-### One-dimensional vector implementations
+## One-dimensional vector implementations
 
 The sources contain various basic vector library implementations that
 are used as the basis for the MoA realization. The `vec/` folder
@@ -100,3 +91,77 @@ for (int n52 = 0; n52 < 10; n52++) {
 After executing the above code, the result is present in variable
 `n49`.
 
+## MoA - Multi-dimensional arrays
+
+The `moa.mlb` and `ilmoa.mlb` libraries provide implementations of
+a multi-dimentional array calculus based on the paper:
+
+ * __G. Hains et L. M. R. Mullin__. _An algebra of multidimensional
+   arrays_. Publication 783, DIRO, Departement d'Informatique et de
+   Recherche Operationnelle, Universite de Montreal, 1991.
+
+In essence, arrays are implemented as a product of two one-dimensional
+vectors, where the first vector specifies the shape of the array
+(ranks and dimensions) and where the second vector specifies the
+content of the array, as contiguous elements.
+
+We demonstrate the `ilmoa.mlb` library by example. Consider the
+following signal processing program:
+
+```sml
+fun diff (signal (*:n*)) (*:n-1*) =
+    rrotate (I 1) signal >>= (fn r => 
+      sum Double (op -) signal r >>= (fn (r' (*:n*)) =>
+      ret (take (siz r' - I 1) r')))
+fun maxsv s v = mmap (fn x => max x s) v   (* scalar-vector max *)
+fun minsv s v = mmap (fn x => min x s) v   (* scalar-vector min *)
+fun prodsv s v = mmap (fn x => x * s) v    (* scalar-vector multiplication *)
+fun addsv s v = mmap (fn x => x + s) v     (* scalar-vector addition *)
+fun divv v1 v2 = sum Double (op /) v1 v2   (* element-wise vector division *)
+fun signal (SIG (*:n*)) =
+    catenate (scl (D 0.0)) SIG >>= (fn (c (*:n+1*)) =>
+    diff c >>= (fn (v (*:n*)) => 
+    divv v (addsv (D 0.01) SIG) >>= (fn tmp =>
+    ret(maxsv (D ~50.0) (minsv (D 50.0) (prodsv (D 50.0) tmp))))))
+```
+
+Here is the driver code for the program:
+
+
+```sml
+  val program =
+    let val n = I 500
+        val v = iota (I 2 * n)
+        infix %
+        val v = mmap (fn x => x % (I 200)) v
+        val v = mmap i2d v
+        val v = mmap (fn d => d / D 2.0) v
+    in mem v >>= (fn v =>
+       signal v >>= (fn v' =>
+       red (ret o op +) (D 0.0) v'))
+    end
+```
+
+The driver code first constructs an array of 1000 elements, processes
+the elements of the array (by calling the `signal` function), and
+finally, sums up the processes values.
+
+Here is the residual program generated (slightly modified for the example):
+
+```c
+double kernel() {
+  double[] n468 = alloc(1000*sizeof(double));
+  for (int n478 = 0; n478 < 1000; n478++) {
+    n468[n478] = (i2d((1+n478)%200)/2.0);
+  }
+  double n471 = 0.0;
+  for (int n479 = 0; n479 < 1000; n479++) {
+    n471 = (max(min((((((n479<1) ? 0.0 : n468[(-1+n479)])-n468[n479])/(n468[n479]+0.01))*50.0),50.0),-50.0)+n471);
+  }
+  return n471;
+}
+```
+
+The first part of the generated program constructs a 1000-element
+array of doubles. The second part of the generated program processes
+each element of the array and sums up the results.
