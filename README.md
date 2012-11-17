@@ -129,11 +129,10 @@ In APL, the code is written
 
 ```apl
 diff ← {1↓⍵−¯1⌽⍵}
-logd ← {¯50⌈50⌊50×diff(0,⍵)}
+signal ← {¯50⌈50⌊50×diff(0,⍵)÷0.01+⍵}
 ```
 
 Here is the driver code for the program:
-
 
 ```sml
   val program =
@@ -151,7 +150,7 @@ Here is the driver code for the program:
 
 The driver code first constructs an array of 1000 elements, processes
 the elements of the array (by calling the `signal` function), and
-finally, sums up the processed values.
+finally, sums up the resulting array.
 
 Here is the residual program generated (slightly modified):
 
@@ -172,3 +171,9 @@ double kernel() {
 The first part of the generated program constructs a 1000-element
 array of doubles. The second part of the generated program processes
 each element of the array and sums up the results.
+
+## Related work
+
+There are lots of related work involving implementation of array languages.
+
+ * [Open source APL interpreter in Javascript](http://ngn.github.com/apl/web/index.html). [Code](http://ngn.github.com/apl/docs/builtins.html).
