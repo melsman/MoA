@@ -176,4 +176,4 @@ each element of the array and sums up the results.
 
 There are lots of related work involving implementation of array languages.
 
- * [Open source APL interpreter in Javascript](http://ngn.github.com/apl/web/index.html). [Code](http://ngn.github.com/apl/docs/builtins.html).
+ * Nick Nickolov. [Open source APL interpreter in Javascript](http://ngn.github.com/apl/web/index.html). [Github project](https://github.com/ngn/apl).
