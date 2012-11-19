@@ -172,8 +172,27 @@ The first part of the generated program constructs a 1000-element
 array of doubles. The second part of the generated program processes
 each element of the array and sums up the results.
 
+Although we can rely on the target language compiler to do a good job
+of generating efficient code for the generated target code, we may
+want to perform certain optimizations during target code
+generation. For instance, in the example above, one could recognize
+the opportunity to roll out the second for-loop one time, which will
+eliminate the continued test on variable `n479`.
+
+Notice that there are several more 
+
+## More to come
+
+The goal of this project is to cover a large set of APL array
+combinators. Composed with a parsing solution for APL, one can
+envision a compilation scheme for parsing a subset of APL into the MoA
+combinators, which again will generate low-level C-like kernels
+(appropriate for GPGPUs, etc.)
+
 ## Related work
 
 There are lots of related work involving implementation of array languages.
 
  * Nick Nickolov. [Open source APL interpreter in Javascript](http://ngn.github.com/apl/web/index.html). [Github project](https://github.com/ngn/apl).
+
+ * Roy E. Lowrance. [APL Literature Review](http://www.cs.nyu.edu/manycores/litrev.pdf). February 22, 2009.
