@@ -129,7 +129,7 @@ In APL, the code is written
 
 ```apl
 diff ← {1↓⍵−¯1⌽⍵}
-signal ← {¯50⌈50⌊50×diff(0,⍵)÷0.01+⍵}
+signal ← {¯50⌈50⌊50×(diff 0,⍵)÷0.01+⍵}
 ```
 
 Here is the driver code for the program:
@@ -173,11 +173,11 @@ array of doubles. The second part of the generated program processes
 each element of the array and sums up the results.
 
 Although we can rely on the target language compiler to do a good job
-of generating efficient code for the generated target code, we may
-want to perform certain optimizations during target code
-generation. For instance, in the example above, one could recognize
-the opportunity to roll out the second for-loop one time, which will
-eliminate the continued test on variable `n479`.
+of generating efficient code, we may want to perform certain
+optimizations during target code generation. For instance, in the
+example above, we could recognize the opportunity to roll out the
+second for-loop one time, which will eliminate the continued test on
+variable `n479`.
 
 Notice that there are several more 
 
@@ -196,3 +196,9 @@ There are lots of related work involving implementation of array languages.
  * Nick Nickolov. [Open source APL interpreter in Javascript](http://ngn.github.com/apl/web/index.html). [Github project](https://github.com/ngn/apl).
 
  * Roy E. Lowrance. [APL Literature Review](http://www.cs.nyu.edu/manycores/litrev.pdf). February 22, 2009.
+
+ * Timothy A. Budd. [A New Approach to Vector Code Generation for Applicative Languages](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.3959). September 20, 1994.
+
+## LICENSE
+
+This software is published under the [MIT License](MIT_LICENSE.md).
