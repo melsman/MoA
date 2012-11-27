@@ -19,6 +19,9 @@ moa: $(FILES)
 ilmoa: $(FILES)
 	$(MLCOMP) -output $@ ilmoa.mlb
 
+runilmoa: $(FILES)
+	$(MLCOMP) -output $@ testilmoa.mlb
+
 runvec: $(FILES)
 	$(MLCOMP) -output $@ vec/vec.mlb
 
