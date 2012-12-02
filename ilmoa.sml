@@ -229,6 +229,24 @@ fun mem t =
       memoize d >>= (fn d => ret (MV(f,d)))
     | NONE => die "mem: expecting moa array"
 
+structure APL = struct
+  val take : INT -> 'a m -> 'a m = fn n => fn t =>
+     mif(n < I 0, drop (siz t + n) t, take n t)
+  and drop : INT -> 'a m -> 'a m = fn n => fn t =>
+     mif(n < I 0, take (siz t + n) t, drop n t)
+
+  fun rotate n t =
+      case unMV t of
+        SOME(f,d) =>
+        let val sz = length d
+        in mif(n < I 0,
+               MV(f,concat (dr (sz + n) d) (tk (sz + n) d)),
+               MV(f,concat (dr n d) (tk n d)))
+        end
+      | NONE => die "rrotate: expecting moa array"
+
+end
+
 (*
   fun stk a b =
       let fun s [0] ys = ys

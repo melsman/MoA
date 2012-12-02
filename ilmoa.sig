@@ -50,5 +50,12 @@ signature ILMOA = sig
   val pp      : ('a -> string) -> 'a t -> string
   val eq      : ('a * 'a -> bool) -> 'a t * 'a t -> bool
 *)
+
+  structure APL : sig
+    val take    : INT -> 'a m -> 'a m
+    val drop    : INT -> 'a m -> 'a m
+    val rotate : INT -> 'a m -> 'a m
+  end
+
 end
 

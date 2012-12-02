@@ -34,4 +34,4 @@ runil2: $(FILES)
 clean:
 	find . -name 'MLB' | xargs rm -rf
 	find . -name '*~' | xargs rm -f
-	rm -f moa run runvec runil runil2 ilmoa
+	rm -f moa run runvec runil runil2 ilmoa runilmoa

@@ -170,7 +170,8 @@ structure ILUtil : ILUTIL = struct
       | Binop(binop,e1,e2) => 
         if infi binop then par (pp e1 %% % (ppB binop) %% pp e2)
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
-      | Unop(unop,e1) => %(ppU unop) %% (pp e1)
+      | Unop(Neg,e1) => %(ppU Neg) %% (pp e1)
+      | Unop(unop,e1) => %(ppU unop) %% par(pp e1)
       | Alloc (_,e1) => %"alloc" %% par(pp e1)
       | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
