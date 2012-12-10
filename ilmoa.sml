@@ -243,8 +243,17 @@ structure APL = struct
                MV(f,concat (dr (sz + n) d) (tk (sz + n) d)),
                MV(f,concat (dr n d) (tk n d)))
         end
-      | NONE => die "rrotate: expecting moa array"
+      | NONE => die "APL.rotate: expecting array"
 
+  val reshape = fn s => fn t =>
+      case unMV s of
+        SOME(sf,sd) => reshape sd t
+      | _ => die "APL.reshape: expecting arrays"
+
+  val shape = fn t =>
+      case unMV t of
+        SOME(tf,_) => vec tf
+      | NONE => die "APL.shape: expecting array"
 end
 
 (*

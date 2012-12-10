@@ -54,8 +54,9 @@ signature ILMOA = sig
   structure APL : sig
     val take    : INT -> 'a m -> 'a m
     val drop    : INT -> 'a m -> 'a m
-    val rotate : INT -> 'a m -> 'a m
+    val rotate  : INT -> 'a m -> 'a m
+    val reshape : Int Num m -> 'a m -> 'a m M
+    val shape   : 'a m -> Int Num m
   end
 
 end
-
