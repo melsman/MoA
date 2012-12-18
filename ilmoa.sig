@@ -57,6 +57,14 @@ signature ILMOA = sig
     val rotate  : INT -> 'a m -> 'a m
     val reshape : Int Num m -> 'a m -> 'a m M
     val shape   : 'a m -> Int Num m
+
+    val prod    : ('a t * 'b t -> 'c t M) -> ('c t * 'c t -> 'c t M) -> 'a m -> 'b m -> 'c m M
+
+    val reduce  : ('a t * 'a t -> 'a t M) -> 'a t -> 'a m -> ('a t -> 'b) -> ('a m -> 'b) -> 'b M
+(*
+    val scan    : ('a t * 'a t -> 'a t) -> 'a t -> 'a m -> 'a m
+*)
+    val trans   : 'a m -> 'a m
   end
 
 end

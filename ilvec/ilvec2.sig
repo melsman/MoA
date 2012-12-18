@@ -54,6 +54,11 @@ signature ILVEC = sig
 
   val merge    : 'a v -> INT -> 'a t -> 'a v
 
+  val trans    : Int Num v -> 'a v -> 'a v 
+  val extend   : INT -> 'a t -> 'a v -> 'a v
+  (* [extend n e v] returns a vector of length n and values taken 
+   * from v (repeatedly), using e if v is the empty vector. *)
+
 (*
   val singlezero : 'a v -> BOOL
   val singleone : 'a v -> BOOL
@@ -65,6 +70,8 @@ signature ILVEC = sig
   val shapeconcat : Int Num v -> Int Num v -> Int Num v
   (* [shapeconcat v v'] assumes v' is not [1]; this property needs to be established by
    * the caller! *)
+
+  val sub_unsafe  : 'a v -> INT -> 'a t
 
   (* Compiled Programs *)
   type ('a,'b) prog
@@ -85,6 +92,7 @@ signature ILVEC = sig
   val eval     : ('a,'b) prog -> 'a V -> 'b V
   val ppV      : 'a V -> string
 end
+
 (*
   val fmap     : t -> IL.Exp -> t
   val list     : 'a t -> 'a list IL.P

@@ -371,12 +371,49 @@ fun shapify t =
        | NONE => t)
     | NONE => die "shapify: expecting vector"
 
+  fun sub_unsafe v i =
+    case (unV v, unE i) of
+      (SOME (n,g), SOME i) => g i
+    | _ => die "sub_unsafe: expecting vector and integer"
+
   fun shapeconcat x y =
       If(singleone x,y,If(singlezero x,x,If(singlezero y,y,concat x y)))
 
   fun merge v n t =
       concat (tk (n - I 1) v)
       (concat (single t) (dr (n + I 1) v))
+
+  infix %
+              
+  fun trans v d =
+      case (unV v, unV d) of
+        (SOME (n,f), SOME(m,g)) =>
+        (case P.unI n of
+           SOME 0 => d   (* known number of dimensions *)
+         | SOME 1 => d
+         | SOME 2 =>
+           let fun g' a =
+                   let val a = E a
+                       val N = f (P.I 0)
+                       val M = f (P.I 1)
+                       val t = M * N - I 1
+                       val r = If(a == t, a, (M*a) % t)
+                       val r = case unE r of
+                                  SOME x => x
+                                | NONE => die "trans:impossible"
+                   in g r
+                   end 
+           in V(m,g')
+           end
+         | SOME n => die ("trans: not implemented - " ^ Int.toString n)
+         | NONE => die "trans: unknown number of dimensions not supported")
+      | _ => die "trans: expecting vectors"
+
+  fun extend n e v =
+      case (unE n, unV v) of
+        (SOME n', SOME(m,f)) =>
+        If(n == I 0, V(n', fn _ => e), V(n',f o (fn i => P.%(i, m))))
+      | _ => die "extend: expecting term and array"
 
 end
 

@@ -334,6 +334,8 @@ in
 
   infix %
   fun (IL.I a) % (IL.I b) = I(Int.mod(a,b))
+    | (x as Binop(Modv,a,IL.I b)) % (IL.I c) = 
+      if Int.<= (b,c) then x else Binop(Modv,x,IL.I c)
     | a % (IL.I 1) = I 0
     | a % b = Binop(Modv,a,b)
 
@@ -388,8 +390,15 @@ in
                  IL.If _ => b == a
                | _ => Binop(Eq,a,b)
 
-  fun ~ e = Unop(Neg,e)
-  fun i2d e = Unop(I2D,e)
+  fun ~ e =
+      case e of
+        IL.I c => I (Int.~c)
+      | IL.D c => D (Real.~c)
+      | _ => Unop(Neg,e)
+  fun i2d e =
+      case e of
+        IL.I c => D (real c)
+      | _ => Unop(I2D,e)
   fun d2i e = Unop(D2I,e)
 end
 fun Subs(n,e) = IL.Subs(n,e)
@@ -414,7 +423,7 @@ fun size ss =
 fun unDecl (IL.Decl x) = SOME x
   | unDecl _ = NONE
 
-val inlinethreshold = 10
+val inlinethreshold = 2
 
 fun For(e,f) ss =
     case e of
@@ -493,6 +502,20 @@ fun lt E e1 e2 =
       | _ => e1 < e2
     end
 
+fun modu E e1 e2 =
+    let fun default() = e1 % e2
+        fun look E n i =
+            case E of
+              (n', LtI(IL.I i'))::E => if n=n' andalso i>=i' then IL.Var n
+                                       else look E n i
+            | x::E => look E n i
+            | nil => default()
+    in
+      case (e1,e2) of
+        (IL.Var n, IL.I i) => look E n i
+      | _ => default()
+    end
+
 fun se_e (E:env) (e:e) : e =
     case e of
       IL.Var n => (case env_lookeq E n of SOME e => se_e E e | NONE => $ n)
@@ -507,7 +530,7 @@ fun se_e (E:env) (e:e) : e =
     | IL.Binop(IL.Sub,e1,e2) => (se_e E e1) - (se_e E e2)
     | IL.Binop(IL.Mul,e1,e2) => (se_e E e1) * (se_e E e2)
     | IL.Binop(IL.Divv,e1,e2) => (se_e E e1) / (se_e E e2)
-    | IL.Binop(IL.Modv,e1,e2) => (se_e E e1) % (se_e E e2)
+    | IL.Binop(IL.Modv,e1,e2) => modu E (se_e E e1) (se_e E e2)
     | IL.Binop(IL.Min,e1,e2) => min (se_e E e1) (se_e E e2)
     | IL.Binop(IL.Max,e1,e2) => max (se_e E e1) (se_e E e2)
     | IL.Binop(IL.Lt,e1,e2) => lt E (se_e E e1) (se_e E e2)

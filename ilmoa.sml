@@ -116,7 +116,7 @@ fun zildeOf a =
 fun reshape0 (f: Int v) (a: 'a m) : 'a m M =
     Shape.product f >>= (fn p =>
       ret(mif(p == siz a, MV(f,snd a), zildeOf a)))
-    
+
 fun reshape f a = reshape0 (Shape.fromVec f) a
                   
 fun index0 (i: INT) (a : 'a m) : 'a m M =
@@ -245,15 +245,59 @@ structure APL = struct
         end
       | NONE => die "APL.rotate: expecting array"
 
-  val reshape = fn s => fn t =>
-      case unMV s of
-        SOME(sf,sd) => reshape sd t
-      | _ => die "APL.reshape: expecting arrays"
+  val reshape =
+      let fun reshape0 (f: Int v) (a: 'a m) : 'a m M =
+              Shape.product f >>= (fn p =>
+              ret(MV(f,extend p (I 0) (snd a))))
+          fun reshape f a = reshape0 (Shape.fromVec f) a
+      in fn s => fn t =>
+                    case unMV s of
+                      SOME(sf,sd) => reshape sd t
+                    | _ => die "APL.reshape: expecting arrays"
+      end
 
   val shape = fn t =>
       case unMV t of
         SOME(tf,_) => vec tf
       | NONE => die "APL.shape: expecting array"
+
+  val trans = fn t =>
+      case unMV t of
+        SOME (s,d) => MV(rev s, trans s d)
+      | NONE => die "APL.trans: expecting array"
+
+  fun reduce f e t scalar vector =
+      case unMV t of
+        SOME (s,d) => 
+        let val r = length s
+        in case unE r of
+             SOME r =>
+             (case P.unI r of
+                SOME 1 => foldl f e d >>= (fn x => ret(scalar x))
+              | SOME 2 =>  (* matrix: M x N *)
+                let val M = sub_unsafe s (I 0)
+                    val N = sub_unsafe s (I 1)
+                    val counter = tabulate M (fn x => x)
+                in foldl (fn (i,a) =>
+                             let val v = tk N (dr (i*N) d)
+                             in foldl f e v >>= (fn x => ret(concat (single x) a))
+                             end) (emptyOf d) counter >>= (fn v => ret(vector(vec v)))
+                end
+              | SOME n => die ("reduce: rank " ^ Int.toString n ^ " not supported")      
+              | NONE => die "reduce: unknown rank not supported")
+           | _ => die "reduce: expecting length to return an expression"
+        end
+      | _ => die "reduce: expecting vector"
+
+  fun prod f g m1 m2 =
+      die "prod: not implemented"
+(*
+      let val m2T = trans m2
+          val 
+      in case (unMV m1, unMV m2T) of
+        
+      : ('a t * 'b t -> 'c t) -> ('c t * 'c t -> 'c t) -> 'a m -> 'b m -> 'c m M
+*)
 end
 
 (*
