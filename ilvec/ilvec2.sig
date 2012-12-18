@@ -73,6 +73,8 @@ signature ILVEC = sig
 
   val sub_unsafe  : 'a v -> INT -> 'a t
 
+  val build2 : INT -> INT -> (INT -> INT -> 'a t M) -> 'a v M
+
   (* Compiled Programs *)
   type ('a,'b) prog
   val runM     : 'b Type.T -> 'b t M -> (unit,'b) prog

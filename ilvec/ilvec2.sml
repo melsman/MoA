@@ -175,7 +175,7 @@ fun eval ((ta,tb,p): ('a,'b) prog) (v: 'a V) : 'b V =
                       ILUtil.ppSS 0 ss)
     end
 
-fun (v,ssT) >>= f = let val (v',ssT') = f v in (v', fn ss => ssT(ssT' ss)) end
+fun (v,ssT) >>= f = let val (v',ssT') = f v in (v', ssT o ssT') end
 fun ret v = (v, fn ss => ss)
 
 fun runF (ta,tb) (f: 'a t -> 'b t M) =
@@ -243,6 +243,28 @@ fun memoize t =
       in (V(n, fn i => E(Subs(name,i))), ssT)
       end
     | _ => die "memoize: expecting vector"
+
+  fun unE' s t =
+      case unE t of
+        SOME e => e
+      | NONE => die s
+
+  fun build2 N1 N2 f =
+      let open P
+          val N1 = unE' "build.N1" N1
+          val N2 = unE' "build.N2" N2
+          val ty = ILUtil.typeExp (unE' "build.ty" (#1(f (E(I 0)) (E(I 0)))))
+          val tyv = Type.Vec ty
+          val name = Name.new tyv
+          fun ssT ss =
+              Decl(name, Alloc(tyv,N1*N2)) ::
+              For(N1, fn i1 =>
+                         For(N2, fn i2 =>
+                                    let val (v,ssT') = f (E i1) (E i2)
+                                    in ssT' [(name,N1*i2+i1) ::= (unE' "build.f" v)]
+                                    end) []) ss
+      in (V(N1*N2, fn i => E(Subs(name,i))), ssT)
+      end
 
 fun For'(n,e,body) =
     let open P

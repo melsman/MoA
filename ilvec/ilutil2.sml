@@ -157,10 +157,13 @@ structure ILUtil : ILUTIL = struct
 
   fun pp_double d =
       if d < 0.0 then "-" ^ pp_double (~d)
-      else let val s = Real.toString d
-           in if CharVector.exists (fn c => c = #".") s then s
-              else s ^ ".0"
-           end
+      else
+        if Real.==(d,Real.posInf) then "INFINITY"
+        else 
+          let val s = Real.toString d
+          in if CharVector.exists (fn c => c = #".") s then s
+             else s ^ ".0"
+          end
 
   fun pp e =
       case e of

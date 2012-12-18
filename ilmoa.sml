@@ -289,15 +289,37 @@ structure APL = struct
         end
       | _ => die "reduce: expecting vector"
 
-  fun prod f g m1 m2 =
-      die "prod: not implemented"
-(*
+  fun prod f g e m1 m2 scalar array =
       let val m2T = trans m2
-          val 
       in case (unMV m1, unMV m2T) of
-        
-      : ('a t * 'b t -> 'c t) -> ('c t * 'c t -> 'c t) -> 'a m -> 'b m -> 'c m M
-*)
+           (SOME (s1,d1), SOME(s2,d2)) => 
+           let val r1 = length s1
+               val r2 = length s2
+           in case (unE r1, unE r2) of
+                (SOME r1, SOME r2) =>
+                (case (P.unI r1, P.unI r2) of
+                   (SOME 1, SOME 1) => foldl f e (map2 g d1 d2) >>= (fn v => ret(scalar v))
+                 | (SOME 2, SOME 2) =>  (* matrix: M x N *)
+                   let val M1 = sub_unsafe s1 (I 0)
+                       val M2 = sub_unsafe s2 (I 0)                             
+                       val N1 = sub_unsafe s1 (I 1)
+                       val N2 = sub_unsafe s2 (I 1)                  
+                       val s = fromList [M1,M2]           
+                       (* memo: check N1 = N2 *)
+                   in build2 M1 M2 (fn x => fn y =>
+                                       let val v1 = tk N1 (dr (x*N1) d1)
+                                           val v2 = tk N2 (dr (y*N2) d2)
+                                       in foldl f e (map2 g v1 v2)
+                                       end) >>= (fn a => ret(array (MV(s,a))))
+                   end
+                 | (SOME n, SOME n') => die ("prod: rank " ^ Int.toString n ^ ", " ^ 
+                                             Int.toString n' ^ " not supported")      
+                 | _ => die "prod: unknown ranks not supported")
+              | _ => die "prod: expecting length to return an expression"
+           end
+         | _ => die "prod: expecting arrays"
+      end
+
 end
 
 (*

@@ -423,7 +423,7 @@ fun size ss =
 fun unDecl (IL.Decl x) = SOME x
   | unDecl _ = NONE
 
-val inlinethreshold = 2
+val inlinethreshold = 3
 
 fun For(e,f) ss =
     case e of
