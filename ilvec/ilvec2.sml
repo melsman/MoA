@@ -434,7 +434,7 @@ fun shapify t =
   fun extend n e v =
       case (unE n, unV v) of
         (SOME n', SOME(m,f)) =>
-        If(n == I 0, V(n', fn _ => e), V(n',f o (fn i => P.%(i, m))))
+        If(E m == I 0, V(n', fn _ => e), V(n',f o (fn i => P.%(i, m))))
       | _ => die "extend: expecting term and array"
 
 end

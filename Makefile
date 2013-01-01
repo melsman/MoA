@@ -9,7 +9,8 @@ IL_FILES=ilvec/il.mlb ilvec/il.sml ilvec/ilutil.sig ilvec/ilutil.sml ilvec/test_
 IL2_FILES=ilvec/il2.mlb ilvec/il2.sml ilvec/ilutil2.sig ilvec/ilutil2.sml ilvec/ilvec2.sig ilvec/ilvec2.sml ilvec/test_il.sml ilvec/test_ilvec2.sml
 MOA_FILES=moa.sig moa.sml test_moa.sml moa.mlb
 ILMOA_FILES=ilmoa.sig ilmoa.sml test_ilmoa.sml
-FILES=Makefile $(IL2_FILES) $(IL_FILES) $(UTEST_FILES) $(VEC_FILES) $(MOA_FILES) $(ILMOA_FILES)
+ILAPL_FILES=ilapl.sig ilapl.sml test_ilapl.sml
+FILES=Makefile $(IL2_FILES) $(IL_FILES) $(UTEST_FILES) $(VEC_FILES) $(MOA_FILES) $(ILMOA_FILES) $(ILAPL_FILES)
 
 all: moa runvec runil runil2 ilmoa
 
@@ -19,8 +20,14 @@ moa: $(FILES)
 ilmoa: $(FILES)
 	$(MLCOMP) -output $@ ilmoa.mlb
 
+ilapl: $(FILES)
+	$(MLCOMP) -output $@ ilapl.mlb
+
 runilmoa: $(FILES)
 	$(MLCOMP) -output $@ testilmoa.mlb
+
+runilapl: $(FILES)
+	$(MLCOMP) -output $@ testilapl.mlb
 
 runvec: $(FILES)
 	$(MLCOMP) -output $@ vec/vec.mlb
@@ -34,4 +41,4 @@ runil2: $(FILES)
 clean:
 	find . -name 'MLB' | xargs rm -rf
 	find . -name '*~' | xargs rm -f
-	rm -f moa run runvec runil runil2 ilmoa runilmoa
+	rm -f moa run runvec runil runil2 ilmoa runilmoa ilapl runilapl

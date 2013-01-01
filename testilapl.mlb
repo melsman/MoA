@@ -1,0 +1,7 @@
+local
+   $(SML_LIB)/basis/basis.mlb
+   ilapl.mlb
+   utest/utest.mlb
+in
+   test_ilapl.sml
+end
