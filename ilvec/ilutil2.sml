@@ -194,11 +194,10 @@ structure ILUtil : ILUTIL = struct
         For (e, f) =>
         let val n = Name.new Type.Int
             val ns = Name.pr n 
-        in %("int " ^ ns ^ " = 0;") %% %$ %%
-            (%("for (; " ^ ns ^ " < ") %%
+        in %("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
              pp e %% %("; " ^ ns ^ "++) {") %% 
                %>(ppSS0(f (Var n))) %%
-             %$ %% %"}")
+             %$ %% %"}"
         end
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
       | Decl (n,e) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
