@@ -24,6 +24,7 @@ type Index = Exp
              
 datatype Program =
          For of Exp * (Name -> Program)
+       | Ifp of Exp * Program * Program
        | Assign of Name * Exp
        | AssignArr of Name * Exp * Exp
        | Seq of Program list
@@ -90,6 +91,7 @@ signature PROGRAM = sig
   type p
   type 'a e
   val For : int e * (int Name.t -> p) -> p
+  val Ifp : bool e * p * p -> p
   val :=  : 'a Name.t * 'a e -> p
   val ::= : ('a Type.arr Name.t * int e) * 'a e -> p
   val >>  : p * p -> p
@@ -140,6 +142,7 @@ structure Program :> PROGRAM where type 'a e = 'a Exp.e = struct
   type p = IL.Program
   type 'a e = 'a Exp.e
   val For = fn (e,f) => IL.For (Exp.toExp e,fn n => f(Name.fromString n))
+  val Ifp = fn (e,p1,p2) => IL.Ifp (Exp.toExp e,p1,p2)
   local open IL infix := ::= >>
   in fun n := e = Assign(Name.pr n,Exp.toExp e)
      fun (n,i) ::= e = AssignArr(Name.pr n,Exp.toExp i,Exp.toExp e)

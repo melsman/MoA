@@ -92,6 +92,7 @@ signature ILVEC = sig
   val unVv     : 'a Vec V -> 'a V list
   val Uv       : unit V 
   val eval     : ('a,'b) prog -> 'a V -> 'b V
+  val pp_prog  : ('a,'b) prog -> string
   val ppV      : 'a V -> string
 end
 

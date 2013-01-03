@@ -11,7 +11,11 @@ end =
 struct
   type t = string * Type
   val count = ref 0
-  fun new t = ("n" ^ Int.toString(!count) before count := !count + 1, t)
+  fun prefix Int = "n"
+    | prefix Double = "d"
+    | prefix Bool = "b"
+    | prefix (Vec _) = "a"
+  fun new t = (prefix t ^ Int.toString(!count) before count := !count + 1, t)
   fun pr (s,_) = s
   fun typeOf (_,t) = t
 end
@@ -94,7 +98,7 @@ structure Type : TYPE = struct
   fun prType IL.Int = "int"
     | prType IL.Double = "double"
     | prType IL.Bool = "bool"
-    | prType (IL.Vec t) = prType t ^ "[]"
+    | prType (IL.Vec t) = prType t ^ "*"
   fun vecElem (IL.Vec t) = t
     | vecElem t = raise Fail ("vecElem: Expecting vector type - got " ^ prType t)
 end

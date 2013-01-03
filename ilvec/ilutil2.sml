@@ -158,12 +158,14 @@ structure ILUtil : ILUTIL = struct
   fun pp_double d =
       if d < 0.0 then "-" ^ pp_double (~d)
       else
-        if Real.==(d,Real.posInf) then "INFINITY"
+        if Real.==(d,Real.posInf) then "HUGE_VAL"
         else 
           let val s = Real.toString d
           in if CharVector.exists (fn c => c = #".") s then s
              else s ^ ".0"
           end
+
+  fun pp_t t = %(Type.prType t)
 
   fun pp e =
       case e of
@@ -175,7 +177,7 @@ structure ILUtil : ILUTIL = struct
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
       | Unop(Neg,e1) => %(ppU Neg) %% (pp e1)
       | Unop(unop,e1) => %(ppU unop) %% par(pp e1)
-      | Alloc (_,e1) => %"alloc" %% par(pp e1)
+      | Alloc (t,e1) => %"(" %% pp_t t %% %")malloc" %% par(pp e1)
       | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
@@ -192,13 +194,14 @@ structure ILUtil : ILUTIL = struct
         For (e, f) =>
         let val n = Name.new Type.Int
             val ns = Name.pr n 
-        in %("for (int " ^ ns ^ " = 0; " ^ ns ^ " < ") %%
-            pp e %% %("; " ^ ns ^ "++) {") %% 
-              %>(ppSS0(f (Var n))) %%
-            %$ %% %"}"
+        in %("int " ^ ns ^ " = 0;") %% %$ %%
+            (%("for (; " ^ ns ^ " < ") %%
+             pp e %% %("; " ^ ns ^ "++) {") %% 
+               %>(ppSS0(f (Var n))) %%
+             %$ %% %"}")
         end
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
-      | Decl (n,e) => %(Type.prType(Name.typeOf n)) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
+      | Decl (n,e) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
       | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
       | Nop => %""
       | Free n => die "Free.unimplemented"

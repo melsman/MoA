@@ -156,6 +156,13 @@ val op := = P.:=
 
 type ('a,'b) prog = 'a Type.T * 'b Type.T * (Name.t * (P.e -> P.s) -> P.ss)
 
+fun pp_prog ((ta,tb,p): ('a,'b) prog) : string =
+    let val name_arg = Name.new ta
+        val ss = p (name_arg, P.Ret)
+        val (ss,_) = P.se_ss nil ss
+    in ILUtil.ppFunction "kernel" (ta,tb) name_arg ss
+    end
+
 fun eval ((ta,tb,p): ('a,'b) prog) (v: 'a V) : 'b V =
     let val name_arg = Name.new ta
         val ss = p (name_arg, P.Ret)

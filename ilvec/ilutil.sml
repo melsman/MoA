@@ -77,6 +77,9 @@ structure ILUtil :> ILUTIL = struct
                        end) E (0,n-1)
            end
          | _ => die "For")
+      | Ifp(e,p1,p2) => (case eval E e of
+                           BoolV b => evalProgram E (if b then p1 else p2)
+                         | _ => die "Ifp")
       | Assign (n,e) => add E (Name.fromString n, eval E e)
       | AssignArr (n,i,e) =>
         (case eval E i of
@@ -148,6 +151,7 @@ structure ILUtil :> ILUTIL = struct
              ppP(f n) %%
              %"}\n"
         end
+      | Ifp(e,p1,p2) => %"if (" %% pp e %% %") {\n" %% ppP p1 %% %"} else {\n" %% ppP p2 %% %"}\n"
       | Assign (n,e) => %n %% %" = " %% pp e %% %";\n"
       | AssignArr (n,i,e) => %n %% spar(pp i) %% %" = " %% pp e %% %";\n"
       | Seq ps => List.foldl (fn (p,r) => r %% ppP p) (%"") ps
