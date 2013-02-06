@@ -22,6 +22,38 @@ structure ILUtil : ILUTIL = struct
         SOME(_,v) => SOME v
       | NONE => NONE
 
+  (* Simple pretty printing *)
+  fun ppB Add = "+"
+    | ppB Sub = "-"
+    | ppB Mul = "*"
+    | ppB Divv = "/"
+    | ppB Modv = "%"
+    | ppB Min = "min"
+    | ppB Max = "max"
+    | ppB Lt = "<"
+    | ppB Lteq = "<="
+    | ppB Eq = "=="
+
+  fun pp_int i = if i < 0 then "-" ^ pp_int (~i)
+                 else Int.toString i
+
+  fun pp_double d =
+      if d < 0.0 then "-" ^ pp_double (~d)
+      else
+        if Real.==(d,Real.posInf) then "HUGE_VAL"
+        else 
+          let val s = Real.toString d
+          in if CharVector.exists (fn c => c = #".") s then s
+             else s ^ ".0"
+          end
+
+  fun ppValue v = 
+      case v of
+        IntV i => pp_int i
+      | DoubleV d => pp_double d
+      | BoolV b => Bool.toString b
+      | ArrV v => "vec"
+
   fun evalBinOp Add (IntV i1,IntV i2) = IntV(i1+i2)
     | evalBinOp Add (DoubleV i1,DoubleV i2) = DoubleV(i1+i2)
     | evalBinOp Sub (IntV i1,IntV i2) = IntV(i1-i2)
@@ -42,7 +74,8 @@ structure ILUtil : ILUTIL = struct
     | evalBinOp Lteq  (DoubleV i1,DoubleV i2) = BoolV(i1 <= i2)
     | evalBinOp Eq  (IntV i1,IntV i2) = BoolV(i1 = i2)
     | evalBinOp Eq  (DoubleV i1,DoubleV i2) = BoolV(Real.==(i1,i2))
-    | evalBinOp _ _ = die "evalBinOp"
+    | evalBinOp Eq  (BoolV b1,BoolV b2) = BoolV(b1 = b2)
+    | evalBinOp p (v1,v2) = die ("evalBinOp." ^ ppB p ^" - v1=" ^ ppValue v1 ^ ", v2=" ^ ppValue v2) 
         
   fun evalUnOp Neg (IntV i) = IntV(~i)
     | evalUnOp Neg (DoubleV d) = DoubleV(~d)
@@ -92,9 +125,14 @@ structure ILUtil : ILUTIL = struct
                        end) E (0,n-1)
            end
          | _ => die "For")
+      | Ifs(e,ss1,ss2) =>
+        (case eval E e of
+           BoolV b => evalSS E (if b then ss1 else ss2) rn
+         | _ => die "eval.Ifs expects boolean")
       | Ret e => add E (rn, eval E e)
       | Assign (n,e) => add E (n, eval E e)
-      | Decl (n,e) => add E (n, eval E e)
+      | Decl (n,SOME e) => add E (n, eval E e)
+      | Decl (n,NONE) => E
       | AssignArr (n,i,e) =>
         (case eval E i of
            IntV i =>
@@ -135,35 +173,11 @@ structure ILUtil : ILUTIL = struct
   fun spar e = %"[" %% e %% %"]"
   fun cpar e = %"{" %% e %% %"}"
 
-  fun ppB Add = "+"
-    | ppB Sub = "-"
-    | ppB Mul = "*"
-    | ppB Divv = "/"
-    | ppB Modv = "%"
-    | ppB Min = "min"
-    | ppB Max = "max"
-    | ppB Lt = "<"
-    | ppB Lteq = "<="
-    | ppB Eq = "=="
-
   fun infi x = List.exists (fn y => x = y) [Add,Sub,Mul,Divv,Modv,Lt,Lteq,Eq]
 
   fun ppU Neg = "-"
     | ppU I2D = "i2d"
     | ppU D2I = "d2i"
-
-  fun pp_int i = if i < 0 then "-" ^ pp_int (~i)
-                 else Int.toString i
-
-  fun pp_double d =
-      if d < 0.0 then "-" ^ pp_double (~d)
-      else
-        if Real.==(d,Real.posInf) then "HUGE_VAL"
-        else 
-          let val s = Real.toString d
-          in if CharVector.exists (fn c => c = #".") s then s
-             else s ^ ".0"
-          end
 
   fun pp_t t = %(Type.prType t)
 
@@ -199,10 +213,16 @@ structure ILUtil : ILUTIL = struct
                %>(ppSS0(f (Var n))) %%
              %$ %% %"}"
         end
+      | Ifs(e,ss1,ss2) => %"if (" %% pp e %% %") {" %%
+                             %> (ppSS0 ss1) %% %$ %% 
+                          %"} else {" %% 
+                             %> (ppSS0 ss2) %% %$ %%
+                          %"}"
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
-      | Decl (n,e) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
+      | Decl (n,SOME e) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
+      | Decl (n,NONE) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %";"
       | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
-      | Nop => %""
+      | Nop => %"/*nop*/"
       | Free n => die "Free.unimplemented"
       | Ret e => %"return " %% pp e %% %";"
 
@@ -216,13 +236,6 @@ structure ILUtil : ILUTIL = struct
               %>(ppSS0 ss) %% %$) %% %$
       in ropeToString 0 r
       end
-
-  fun ppValue v = 
-      case v of
-        IntV i => pp_int i
-      | DoubleV d => pp_double d
-      | BoolV b => Bool.toString b
-      | ArrV v => "vec"
 
   fun resTypeBinop binop =
       case binop of

@@ -3,7 +3,7 @@ structure IL = struct
 datatype Type = Int | Double | Bool | Vec of Type
 
 structure Name : sig
-  type t
+  eqtype t
   val new : Type -> t
   val pr : t -> string
   val typeOf : t -> Type
@@ -47,9 +47,10 @@ type Index = Exp
              
 datatype Stmt =
          For of Exp * (Exp -> Stmt list)
+       | Ifs of Exp * Stmt list * Stmt list
        | Assign of Name.t * Exp
        | AssignArr of Name.t * Exp * Exp
-       | Decl of Name.t * Exp
+       | Decl of Name.t * Exp option
        | Nop
        | Free of Name.t
        | Ret of Exp
@@ -67,6 +68,23 @@ fun eq(e1,e2) =
     | (Binop(p1,a1,a2),Binop(p2,b1,b2)) => p1=p2 andalso eq(a1,b1) andalso eq(a2,b2)
     | (Unop(p1,a1),Unop(p2,b1)) => p1=p2 andalso eq(a1,b1)
     | _ => false
+
+fun eq_s(s1,s2) =
+    case (s1, s2) of
+      (For (e1,f1), For(e2,f2)) => false
+    | (Ifs(e1,ss11,ss12), Ifs(e2,ss21,ss22)) => false
+    | (Assign (n1,e1), Assign (n2,e2)) => n1 = n2 andalso eq(e1,e2)
+    | (AssignArr(n1,e1,e2), AssignArr(n2,e12,e22)) => false
+    | (Decl (n1,NONE), Decl(n2,NONE)) => n1 = n2
+    | (Decl (n1,SOME e1), Decl(n2,SOME e2)) => n1 = n2 andalso eq(e1,e2)
+    | (Nop,Nop) => true
+    | (Free n1, Free n2) => n1 = n2
+    | (Ret e1, Ret e2) => eq(e1,e2)
+    | _ => false
+
+and eq_ss (nil,nil) = true
+  | eq_ss (s1::ss1,s2::ss2) = eq_s(s1,s2) andalso eq_ss(ss1,ss2)
+  | eq_ss _ = false
 end
 
 signature TYPE = sig
@@ -141,21 +159,28 @@ signature PROGRAM = sig
   type s
   type ss = s list
   val For : e * (e -> ss) -> ss -> ss
+  val Ifs : e * ss * ss -> ss -> ss
   val :=  : Name.t * e -> s
   val ::= : (Name.t * e) * e -> s
-  val Decl: Name.t * e -> s
+  val Decl: Name.t * e option -> s
   val Ret : e -> s
   val Free : Name.t -> s
   val emp : s
-  val unDecl : s -> (Name.t * e) option
+  val unDecl : s -> (Name.t * e option) option
 
   (* static evaluation *)
   datatype info = EqI of e
                 | LtI of e
                 | GtEqI of e 
   type env = (Name.t * info) list
+
+  (* static evaluation *)
   val se_e  : env -> e -> e
-  val se_ss : env -> ss -> ss * env
+  val se_ss : env -> ss -> ss
+
+  (* remove unused declarations *)
+  val rm_decls : e -> ss -> ss
+  val rm_decls0 : ss -> ss
 end
 
 structure Program : PROGRAM = struct
@@ -194,21 +219,51 @@ in
       case s of
         IL.Assign (_,e) => uses e N.empty
       | IL.AssignArr (n,e1,e2) => uses e1 (uses e2 (N.singleton n))
-      | IL.Decl (_,e) => uses e (N.empty)
+      | IL.Decl (_,SOME e) => uses e (N.empty)
+      | IL.Decl (_,NONE) => N.empty
       | IL.Nop => N.empty
       | IL.Free n => N.singleton n
       | IL.Ret e => uses e N.empty
-      | IL.For (e,f) => raise Fail "uses_s"
+      | IL.Ifs(e,s1,s2) => uses e (N.union (uses_ss s1,uses_ss s2))
+      | IL.For (e,f) =>
+        let val n = Name.new Type.Int
+            val body = f (IL.Var n)
+        in uses e (N.difference(uses_ss body,N.singleton n))
+        end
+  and uses_ss nil = N.empty
+    | uses_ss (s::ss) = N.union (uses_s s, uses_ss ss)
 
   fun defs_s s =
       case s of
         IL.Nop => N.empty
       | IL.Ret e => N.empty
       | IL.Free n => N.empty
-      | IL.Decl(n,e) => N.singleton n
+      | IL.Decl(n,SOME e) => N.singleton n
+      | IL.Decl(n,NONE) => N.empty
       | IL.Assign(n,e) => N.singleton n
       | IL.AssignArr(n,e0,e) => N.empty
-      | IL.For(e,f) => raise Fail "defs_s"
+      | IL.Ifs(_,s1,s2) => N.union(defs_ss s1,defs_ss s2)
+      | IL.For(e,f) =>
+        let val n = Name.new Type.Int
+            val body = f (IL.Var n)
+        in N.difference(defs_ss body,N.singleton n)
+        end
+  and defs_ss nil = N.empty
+    | defs_ss (s::ss) = N.union (defs_s s, defs_ss ss)
+
+  fun decls_s s =
+      case s of
+        IL.Nop => N.empty
+      | IL.Ret e => N.empty
+      | IL.Free n => N.empty
+      | IL.Decl(n,_) => N.singleton n
+      | IL.Assign(n,e) => N.empty
+      | IL.AssignArr(n,e0,e) => N.empty
+      | IL.Ifs(_,s1,s2) => N.empty
+      | IL.For(e,f) => N.empty
+  and decls_ss nil = N.empty
+    | decls_ss (s::ss) = N.union (decls_s s, decls_ss ss)
+
 (*
   fun dce ss =
       case ss of
@@ -429,14 +484,26 @@ fun unDecl (IL.Decl x) = SOME x
 
 val inlinethreshold = 3
 
-fun For(e,f) ss =
+fun Ifs(e,ss1,ss2) ss =
     case e of
-      IL.I 0 => ss
-    | IL.I 1 => f (IL.I 0) @ ss
+      IL.T => ss1 @ ss
+    | IL.F => ss2 @ ss
+    | _ =>
+      case (ss1, ss2) of
+        (nil, _) => ss2 @ ss
+      | (_, nil) => ss1 @ ss
+      | _ => 
+        if IL.eq_ss(ss1, ss2) then ss1 @ ss
+        else IL.Ifs(e,ss1,ss2) :: ss
+
+fun ForOptimize optimize (e,f) ss =
+    case e of
+      IL.I 0 => optimize ss
+    | IL.I 1 => optimize(f (IL.I 0) @ ss)
     | _ => 
       let val body = f($(Name.new IL.Int))
-          fun default() = IL.For (e,f) :: ss
-      in if isEmp body then ss
+          fun default() = IL.For (e,f) :: optimize ss
+      in if isEmp body then optimize ss
          else
            case e of
              IL.I n =>
@@ -444,11 +511,16 @@ fun For(e,f) ss =
                let fun iter x f a =
                        if Int.<(x,0) then a
                        else iter (Int.-(x,1)) f (f(x,a))
-               in iter (Int.-(n,1)) (fn (i,a) => f(I i) @ a) ss
+                   val ss = iter (Int.-(n,1)) (fn (i,a) => f(I i) @ a) ss
+               in optimize ss
                end
              else default()
            | _ => default()
       end
+
+val For = ForOptimize (fn x => x)
+
+val For = fn (e,f) => fn ss => IL.For (e,f) :: ss
 
 local open IL infix := ::= 
 in
@@ -474,6 +546,31 @@ fun defs ss : N.set =
             val ns = N.remove (defs(f($n)),n)
         in N.union (ns,defs ss)
         end
+      | IL.Ifs(e,ss1,ss2) => N.union(N.union(defs ss1,defs ss2),defs ss)
+
+fun rm_declsU U ss = ss
+(*
+    let fun rm nil = (nil,U)
+          | rm (s::ss) =
+            let val (ss,U) = rm ss
+                fun uds_s s = N.union(uses_s s,defs_s s)
+            in case s of 
+                 IL.Decl (n,_) =>
+                 if N.member(U,n) then
+                   (s::ss,N.union(U,uds_s s))
+                 else (ss,U)
+               | _ => (s::ss,N.union(U,uds_s s))
+            end
+    in #1(rm ss)
+    end
+*)
+fun rm_decls e ss =
+    let val U = uses e (N.empty)
+    in rm_declsU U ss
+    end
+
+fun rm_decls0 ss =
+    rm_declsU N.empty ss
 
 infix ::=
 datatype info = EqI of e
@@ -481,7 +578,7 @@ datatype info = EqI of e
               | GtEqI of e 
 type env = (Name.t * info) list
 val env_empty : env = nil
-fun dom E = N.fromList(map #1 E)
+fun dom (E:env) = N.fromList(map #1 E)
 fun env_cut E names =
     List.filter (fn (n,_) => not(N.member (names,n))) E
 
@@ -520,6 +617,7 @@ fun modu E e1 e2 =
       | _ => default()
     end
 
+(* Static evaluation *)
 fun se_e (E:env) (e:e) : e =
     case e of
       IL.Var n => (case env_lookeq E n of SOME e => se_e E e | NONE => $ n)
@@ -544,46 +642,59 @@ fun se_e (E:env) (e:e) : e =
     | IL.Unop(IL.I2D,e1) => i2d (se_e E e1)
     | IL.Unop(IL.D2I,e1) => d2i (se_e E e1)
 
-fun se_ss (E:env) (ss:ss) : ss * env =
+fun se_ss (E:env) (ss:ss) : ss =
     case ss of
-      nil => (nil, env_empty)
+      nil => nil
     | s::ss2 =>
       case s of
         IL.Nop => se_ss E ss2
-      | IL.Ret e => (Ret(se_e E e)::nil, env_empty)  (* ss2 is dead *)
+      | IL.Ret e => Ret(se_e E e)::nil  (* ss2 is dead *)
       | IL.Free n => 
-        let val (ss2,E2) = se_ss E ss2
-        in (Free n :: ss2, E2)
+        let val ss2 = se_ss E ss2
+        in Free n :: ss2
         end
-      | IL.Decl(n,e) =>
+      | IL.Decl(n,SOME e) =>
         let val e = se_e E e
             val E2 = (n,EqI e)::E
-            val (ss2,E3) = se_ss E2 ss2
-            val E3' = env_cut E3 (N.singleton n)
-        in (Decl(n,e) :: ss2, E3')
+            val ss2 = se_ss E2 ss2
+        in Decl(n,SOME e) :: ss2
+        end
+      | IL.Decl(n,NONE) =>
+        let val ss2 = se_ss E ss2
+        in Decl(n,NONE) :: ss2
         end
       | IL.Assign(n,e) =>
         let val e = se_e E e
             val E2 = (n,EqI e)::E
-            val (ss2,E3) = se_ss E2 ss2
-        in ((n := e) :: ss2, E3)
+            val ss2 = se_ss E2 ss2
+        in (n := e) :: ss2
         end
       | IL.AssignArr(n,e0,e) =>
         let val e0 = se_e E e0
             val e = se_e E e                    
-            val (ss2,E3) = se_ss E ss2
-        in (((n,e0) ::= e) :: ss2, E3)
+            val ss2 = se_ss E ss2
+        in ((n,e0) ::= e) :: ss2
         end
       | IL.For(e,f) =>
         let val n = Name.new Type.Int
             val body = f($n)
             val defs_body = defs body
-            val E = env_cut E defs_body
-            val e' = se_e E e
+            val E' = env_cut E defs_body
+            val e' = se_e E' e
             val E2 = (n,GtEqI(I 0))::(n,LtI e')::E
-            val (ss1,E') = se_ss E2 body
-            val (ss2',E2') = se_ss (env_cut E (dom E')) ss2
-        in (For(e',fn e => #1(se_ss [(n,EqI e)] ss1)) ss2',
-            E2')
+            val ss1 = se_ss E2 body
+            val ss1 = rm_decls0 ss1
+        in ForOptimize (se_ss E') (e', fn e => se_ss [(n,EqI e)] ss1) ss2
+        end
+      | IL.Ifs(e,ss0,ss1) =>
+        let val e = se_e E e
+            val ss0 = se_ss E ss0
+            val ss1 = se_ss E ss1
+            val defs_branches = N.union(defs_ss ss0,defs_ss ss1)
+            val ss0 = rm_decls0 ss0
+            val ss1 = rm_decls0 ss1
+            val E' = env_cut E defs_branches
+            val ss2 = se_ss E' ss2
+        in Ifs(e,ss0,ss1) ss2
         end
 end

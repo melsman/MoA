@@ -117,11 +117,11 @@ val _ = tstT "iota2" (fn () => iota (I 1) === vec(fromList[I 1]))
 val _ = tstT "iota3" (fn () => iota (I 0) === zi)
 
 val v2345 = fromList[I 2,I 3,I 4,I 5]
-val _ = tstT "each0" (fn () => each (fn x => x + (I 1)) zi === zi)
-val _ = tstT "each1" (fn () => each (fn x => x + (I 1)) A === vec v2345)
+val _ = tstT "each0" (fn () => each (fn x => ret(x + (I 1))) zi === zi)
+val _ = tstT "each1" (fn () => each (fn x => ret(x + (I 1))) A === vec v2345)
 val _ = tstT "each2" (fn () => reshape v22 A >>= (fn A' =>
                                reshape v22 (vec v2345) >>= (fn A'' =>
-                               each (fn x => x + (I 1)) A' === A'')))
+                               each (fn x => ret(x + (I 1))) A' === A'')))
 
 (*
 val _ = tst "fmap0" (fn () => A.fmap (A.zilde()) 4 == A.zilde())
@@ -172,8 +172,8 @@ val C = vec (fromList[I 150,I 170])
 val _ = tstT "out7 - Prop10.5" (fn () => A ** B >>= (fn x => x**C >>= (fn v1 =>
                                          B ** C >>= (fn x => A**x >>= (fn v2 => v1 === v2)))))
 *)
-val _ = tstT "sum1" (fn () => sum Int (op +) A B >>= (fn v => v === vec(fromList([I 11,I 22]))))
-val _ = tstT "sum2" (fn () => sum Int (op +) A (vec(fromList[I 1,I 2,I 3])) >>= (fn v => v === zi))
+val _ = tstT "sum1" (fn () => sum Int (ret o op +) A B >>= (fn v => v === vec(fromList([I 11,I 22]))))
+val _ = tstT "sum2" (fn () => sum Int (ret o op +) A (vec(fromList[I 1,I 2,I 3])) >>= (fn v => v === zi))
 end
 
 (*
@@ -252,7 +252,7 @@ val rotate = fn x => fn y => ret (rotate x y)
 val _ = tstF "rrotate1" (Type.Int, Type.Double) 
              (fn v => 
                  let val a = iota (v + I 2)
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in catenate (scl(D 0.0)) a >>= (fn a =>
                     rotate (I ~1) a >>= (fn b => 
                     red (ret o op +) (D 0.0) b))
@@ -261,7 +261,7 @@ val _ = tstF "rrotate1" (Type.Int, Type.Double)
 val _ = tstF "rrotate2" (Type.Int, Type.Int) 
              (fn v => 
                  let val a = iota (v + I 2)
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in catenate (scl(D 0.0)) a >>= (fn a =>
                     rotate (I ~1) a >>= (fn b => 
                     ret (siz b)))
@@ -272,7 +272,7 @@ fun sub1 (x, a) = If(a == D 0.0, x, a - x)
 val _ = tstF "rrotate3" (Type.Int, Type.Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in rotate (I ~1) a >>= (fn b =>            (* 5 1 2 3 4 *)
                     red (ret o sub1) (D 0.0) b)
                  end) (Iv 5) "-5.0"
@@ -280,20 +280,20 @@ val _ = tstF "rrotate3" (Type.Int, Type.Double)
 val _ = tstF "rrotate4" (Type.Int, Type.Int) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in rotate (I ~1) a >>= (fn b =>
                     ret (length(shape b)))
                  end) (Iv 5) "1"
 
 fun diff (SIG (*:n*)) (*:n-1*) =
     rotate (I ~1) SIG >>= (fn r => 
-    sum Double (op -) SIG r >>= (fn (r' (*:n*)) =>
+    sum Double (ret o op -) SIG r >>= (fn (r' (*:n*)) =>
     ret (drop (I 1) r'))) (* take (siz r' - I 1) r'))) *)
 
 val _ = tstF "diff0" (Type.Int, Type.Int)
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in diff a >>= (fn b =>
                     ret (siz b))
                  end) (Iv 5) "4"
@@ -301,7 +301,7 @@ val _ = tstF "diff0" (Type.Int, Type.Int)
 val _ = tstF "diff1" (Type.Int, Type.Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a
+                     val a = each (ret o i2d) a
                  in diff a >>= (fn b =>
                     red (ret o sub1) (D 0.0) b)
                  end) (Iv 5) "0.0"
@@ -309,15 +309,15 @@ val _ = tstF "diff1" (Type.Int, Type.Double)
 val _ = tstF "diff2" (Type.Int, Type.Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a          (* 1 2 3 4 5 *)   (* 1  2  3  4  5 *)
-                 in diff a >>= (fn b =>                            (* 5  1  2  3  4 *)
-                    red (ret o op +) (D 0.0) b)                    (*-4  1  1  1  1 *)
+                     val a = each (ret o i2d) a          (* 1 2 3 4 5 *)   (* 1  2  3  4  5 *)
+                 in diff a >>= (fn b =>                                    (* 5  1  2  3  4 *)
+                    red (ret o op +) (D 0.0) b)                            (*-4  1  1  1  1 *)
                  end) (Iv 5) "4.0"
 
 val _ = tstF "diff3" (Type.Int, Type.Int) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a                 
+                     val a = each (ret o i2d) a                 
                  in catenate (scl(D 0.0)) a >>= (fn a => 
                     diff a >>= (fn b => ret (siz b)))
                  end) (Iv 5) "5"
@@ -327,22 +327,22 @@ fun prodv v = foldl (ret o op *) (I 1) v
 val _ = tstF "catenate9" (Type.Int, Type.Int) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a                 
+                     val a = each (ret o i2d) a                 
                  in catenate (scl(D 0.0)) a >>= (fn a => prodv (shape a))
                  end) (Iv 5) "6"
 
 val _ = tstF "catenate10" (Type.Int, Type.Int) 
              (fn v => 
                  let val a = iota v
-                     val a = each i2d a                 
+                     val a = each (ret o i2d) a                 
                  in catenate (scl(D 0.0)) a >>= (fn a => ret (length (shape a)))
                  end) (Iv 5) "1"
 
-fun maxsv s v = each (fn x => max x s) v
-fun minsv s v = each (fn x => min x s) v
-fun prodsv s v = each (fn x => x * s) v
-fun addsv s v = each (fn x => x + s) v
-fun divv v1 v2 = sum Double (op /) v1 v2
+fun maxsv s v = each (fn x => ret(max x s)) v
+fun minsv s v = each (fn x => ret(min x s)) v
+fun prodsv s v = each (fn x => ret(x * s)) v
+fun addsv s v = each (fn x => ret(x + s)) v
+fun divv v1 v2 = sum Double (ret o op /) v1 v2
 
 fun signal0 (SIG (*:n*)) =
     catenate (scl (D 0.0)) SIG >>= (fn (c (*:n+1*)) =>
@@ -360,8 +360,8 @@ fun absplus (x,a) =
 val _ = tstF "catenate8" (Type.Int, Type.Double)
              (fn n =>
                  let val v = iota (I 2 * n)
-                     val v = each i2d v
-                     val v = each (fn d => d / D 2.0) v                             
+                     val v = each (ret o i2d) v
+                     val v = each (fn d => ret(d / D 2.0)) v                             
                  in catenate (scl(D 0.0)) v >>= (fn v' => (* v'=[0.0 0.5 1.0 ... 100.0]; sum(v') = 100*100+50 *)
                     red (ret o absplus) (D 0.0) v')
                  end) (Iv 100) "10050.0"
@@ -369,8 +369,8 @@ val _ = tstF "catenate8" (Type.Int, Type.Double)
 val _ = tstF "signal0" (Type.Int, Type.Int)
              (fn n =>
                  let val v = iota (I 2 * n)
-                     val v = each i2d v
-                     val v = each (fn d => d / D 2.0) v                             
+                     val v = each (ret o i2d) v
+                     val v = each (fn d => ret(d / D 2.0)) v                             
                  in signal0 v >>= (fn v' => ret (siz v'))
                  end) (Iv 100) "200"
 
@@ -379,9 +379,9 @@ val _ = tstF "signal" (Type.Int, Type.Double)
                  let val n = I 500
                      val v = iota (I 2 * n)
                      infix %
-                     val v = each (fn x => x % (I 200)) v
-                     val v = each i2d v
-                     val v = each (fn d => d / D 2.0) v
+                     val v = each (fn x => ret(x % (I 200))) v
+                     val v = each (ret o i2d) v
+                     val v = each (fn d => ret(d / D 2.0)) v
                  in mem v >>= (fn v =>
                     signal v >>= (fn v' => red (ret o op +) (D 0.0) v'))
                  end) (Iv (500)) "1210.17620977" 

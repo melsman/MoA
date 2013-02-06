@@ -12,7 +12,17 @@ ILMOA_FILES=ilmoa.sig ilmoa.sml test_ilmoa.sml
 ILAPL_FILES=ilapl.sig ilapl.sml test_ilapl.sml
 FILES=Makefile $(IL2_FILES) $(IL_FILES) $(UTEST_FILES) $(VEC_FILES) $(MOA_FILES) $(ILMOA_FILES) $(ILAPL_FILES)
 
-all: moa runvec runil runil2 ilmoa
+all: moa runvec runil runil2 ilmoa runilm runil2m runilmoa runilapl
+
+tests: all
+	./moa
+	./runvec
+	./runil
+	./runil2
+	./runilmoa
+	./runilm
+	./runil2m
+	./runilapl
 
 moa: $(FILES)
 	$(MLCOMP) -output $@ moa.mlb
@@ -37,6 +47,9 @@ runil: $(FILES)
 
 runilm: $(FILES)
 	$(MLCOMP) -output $@ ilvec/ilm.mlb
+
+runil2m: $(FILES)
+	$(MLCOMP) -output $@ ilvec/testil2m.mlb
 
 runil2: $(FILES)
 	$(MLCOMP) -output $@ ilvec/testil2.mlb

@@ -15,7 +15,7 @@ signature ILAPL = sig
   val rav0    : 'a m -> 'a v
 
 (*  val index   : Int Num v -> 'a m -> 'a m M *)
-  val each    : ('a t -> 'b t) -> 'a m -> 'b m
+  val each    : ('a t -> 'b t M) -> 'a m -> 'b m
 
   val red     : ('a t * 'b t -> 'b t M) -> 'b t -> 'a m -> 'b t M
 
@@ -27,7 +27,7 @@ signature ILAPL = sig
   val out     : 'c T -> ('a t * 'b t -> 'c t) -> 'a m -> 'b m -> 'c m M
 *)
 
-  val sum     : 'c T -> ('a t * 'b t -> 'c t) -> 'a m -> 'b m -> 'c m M
+  val sum     : 'c T -> ('a t * 'b t -> 'c t M) -> 'a m -> 'b m -> 'c m M
 
   val scan    : ('a t * 'b t -> 'a t) -> 'a t -> 'b m -> 'a m M
 
@@ -42,7 +42,7 @@ signature ILAPL = sig
   val reshape : Int Num v -> 'a m -> 'a m M
   val shape   : 'a m -> Int Num v
 
-  val prod    : ('a t * 'a t -> 'a t M) -> ('a t * 'a t -> 'a t) -> 'a t -> 'a m -> 'a m 
+  val prod    : ('a t * 'a t -> 'a t M) -> ('a t * 'a t -> 'a t M) -> 'a t -> 'a m -> 'a m 
                 -> ('a t -> 'b) -> ('a m -> 'b) -> 'b M 
 
   val reduce  : ('a t * 'a t -> 'a t M) -> 'a t -> 'a m -> ('a t -> 'b) -> ('a m -> 'b) -> 'b M

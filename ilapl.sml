@@ -5,8 +5,9 @@ fun die s = raise Fail ("ILapl." ^ s)
 
 structure P = Program
 structure Term = struct
+  type 'a M = 'a * (Program.ss -> Program.ss)
   datatype t0 = E of P.e
-              | V of P.e * (P.e -> t0)
+              | V of P.e * (P.e -> t0 M)
               | MV of t0 * t0
   fun unE (E e) = SOME e
     | unE _ = NONE
@@ -54,7 +55,7 @@ type 'a m = 'a MVec t
 fun vec c = MV(Shape.single (length c), c)
 fun scl v = MV(Shape.empty, single v)
 fun zilde ty = MV(Shape.singlez, empty ty)
-fun iota n = vec (tabulate n (fn x => x + (I 1)))
+fun iota n = vec (tabulate n (fn x => ret(x + (I 1))))
 fun shape0 t =
     case unMV t of
       SOME (f,_) => f
@@ -131,8 +132,8 @@ fun sum ty g a b =
 
 fun pre (a: 'a v) : 'a Vec v =
     let val n = length a
-        val iotan = tabulate n (fn x => x + I 1)
-    in map (fn i => tk i a) iotan
+        val iotan = tabulate n (fn x => ret(x + I 1))
+    in map (fn i => ret(tk i a)) iotan
     end
 
 fun mapm emp f xs = 
@@ -156,7 +157,7 @@ fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
           val s2' = Shape.dr (I 1) s2
           val v1 = Shape.tk (I 1) s1
           val v2 = Shape.tk (I 1) s2
-          val x = map2 (op +) v1 v2
+          val x = map2 (ret o op +) v1 v2
           val mv = MV(Shape.concat x s1',
                       concat d1 d2)
       in Shape.eq s1' s2' >>= (fn shapeeq =>
@@ -206,13 +207,15 @@ fun reduce f e t scalar vector =
            (case P.unI r of
               SOME 1 => foldl f e d >>= (fn x => ret(scalar x))
             | SOME 2 =>  (* matrix: M x N *)
-              let val M = sub_unsafe s (I 0)
-                  val N = sub_unsafe s (I 1)
-                  val counter = tabulate M (fn x => x)
-              in foldl (fn (i,a) =>
-                           let val v = tk N (dr (i*N) d)
-                           in foldl f e v >>= (fn x => ret(concat (single x) a))
-                           end) (emptyOf d) counter >>= (fn v => ret(vector(vec v)))
+              let 
+              in sub_unsafe s (I 0) >>= (fn M =>
+                 sub_unsafe s (I 1) >>= (fn N =>
+                 let val counter = tabulate M ret
+                 in foldl (fn (i,a) =>
+                              let val v = tk N (dr (i*N) d)
+                              in foldl f e v >>= (fn x => ret(concat (single x) a))
+                              end) (emptyOf d) counter >>= (fn v => ret(vector(vec v)))
+                 end))
               end
             | SOME n => die ("reduce: rank " ^ Int.toString n ^ " not supported")      
             | NONE => die "reduce: unknown rank not supported")
@@ -231,18 +234,18 @@ fun prod f g e m1 m2 scalar array =
               (case (P.unI r1, P.unI r2) of
                  (SOME 1, SOME 1) => foldl f e (map2 g d1 d2) >>= (fn v => ret(scalar v))
                | (SOME 2, SOME 2) =>  (* matrix: M x N *)
-                 let val M1 = sub_unsafe s1 (I 0)
-                     val M2 = sub_unsafe s2 (I 0)                             
-                     val N1 = sub_unsafe s1 (I 1)
-                     val N2 = sub_unsafe s2 (I 1)                  
-                     val s = fromList [M1,M2]           
+                 sub_unsafe s1 (I 0) >>= (fn M1 =>
+                 sub_unsafe s2 (I 0) >>= (fn M2 =>
+                 sub_unsafe s1 (I 1) >>= (fn N1 =>
+                 sub_unsafe s2 (I 1) >>= (fn N2 =>                 
+                 let val s = fromList [M1,M2]           
                  (* memo: check N1 = N2 *)
                  in build2 M1 M2 (fn x => fn y =>
                                              let val v1 = tk N1 (dr (x*N1) d1)
                                                  val v2 = tk N2 (dr (y*N2) d2)
                                              in foldl f e (map2 g v1 v2)
                                              end) >>= (fn a => ret(array (MV(s,a))))
-                 end
+                 end))))
                | (SOME n, SOME n') => die ("prod: rank " ^ Int.toString n ^ ", " ^ 
                                            Int.toString n' ^ " not supported")      
                | _ => die "prod: unknown ranks not supported")
