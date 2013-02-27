@@ -19,6 +19,10 @@ val () = tstM "foldr_mem" Type.Int
 
 fun sum v = foldl (ret o op +) (I 0) v
 
+val () = tstM "sum" Type.Int
+              let open Int in Int.toString(1+2+3+4+5+6+7+8+9) end
+              (fn () => sum e1)
+
 val () = tstM "dr" Type.Int
               let open Int in Int.toString(6+5+4+3+2) end
               (fn () => sum (dr (I 5) e3))
@@ -34,7 +38,7 @@ val () = tstM "memoize" Type.Int "2"
 
 val () = tstM "map2" Type.Int
               let open Int in Int.toString(11*2+10*3) end
-              (fn () => sum (tk (I 2) (map2 (op *) e3 e2)))
+              (fn () => sum (tk (I 2) (map2 (op * ) e3 e2)))
 
 val () = tstM "foldl" Type.Int
               let open Int in Int.toString(11+10+9+8+7+6+5+4+3+2) end
@@ -85,7 +89,7 @@ val () = tstM "fromList" Type.Int
                   foldr (ret o op +) (I 0) e3 >>=
                         (fn sum => 
                             let val v = fromList [sum,I 1000,sum]
-                            in foldr (ret o op *) (I 1) v
+                            in foldr (ret o op * ) (I 1) v
                             end))                  
 
 fun tstT s f = tstM s Type.Bool "true" f
@@ -152,7 +156,6 @@ val () = tstT "interlv1"
                       (interlv v0246 v1357)
                       (tabulate (I 8) (fn x => x))
          )
-
 
 val () = finish()
 end

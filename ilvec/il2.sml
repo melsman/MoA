@@ -520,7 +520,7 @@ fun ForOptimize optimize (e,f) ss =
 
 val For = ForOptimize (fn x => x)
 
-val For = fn (e,f) => fn ss => IL.For (e,f) :: ss
+(*val For = fn (e,f) => fn ss => IL.For (e,f) :: ss*)
 
 local open IL infix := ::= 
 in
@@ -548,8 +548,7 @@ fun defs ss : N.set =
         end
       | IL.Ifs(e,ss1,ss2) => N.union(N.union(defs ss1,defs ss2),defs ss)
 
-fun rm_declsU U ss = ss
-(*
+fun rm_declsU U ss =
     let fun rm nil = (nil,U)
           | rm (s::ss) =
             let val (ss,U) = rm ss
@@ -563,9 +562,9 @@ fun rm_declsU U ss = ss
             end
     in #1(rm ss)
     end
-*)
+
 fun rm_decls e ss =
-    let val U = uses e (N.empty)
+    let val U = uses e N.empty
     in rm_declsU U ss
     end
 
@@ -576,12 +575,22 @@ infix ::=
 datatype info = EqI of e
               | LtI of e
               | GtEqI of e 
+
+fun names_info (EqI e) = uses e N.empty
+  | names_info (LtI e) = uses e N.empty
+  | names_info (GtEqI e) = uses e N.empty
+
 type env = (Name.t * info) list
 val env_empty : env = nil
+fun names_env E = 
+  foldl (fn ((n,i),a) => N.union(N.singleton n, N.union(a,names_info i))) N.empty E
+fun assert_name (E, n) =
+    if N.member(names_env E,n) then raise Fail ("assert_name:" ^ Name.pr n)
+    else ()
 fun dom (E:env) = N.fromList(map #1 E)
 fun env_cut E names =
-    List.filter (fn (n,_) => not(N.member (names,n))) E
-
+    List.filter (fn (n,i) => not(N.member (names,n)) andalso 
+                             N.isEmpty(N.intersect(names,names_info i))) E
 fun env_lookeq E n =
     case E of nil => NONE
             | (n', EqI e)::E => if n = n' then SOME e
@@ -620,7 +629,7 @@ fun modu E e1 e2 =
 (* Static evaluation *)
 fun se_e (E:env) (e:e) : e =
     case e of
-      IL.Var n => (case env_lookeq E n of SOME e => se_e E e | NONE => $ n)
+      IL.Var n => (case env_lookeq E n of SOME e => (*se_e E*) e | NONE => $ n)
     | IL.I i => I i
     | IL.D d => D d
     | IL.T => B true
@@ -643,7 +652,7 @@ fun se_e (E:env) (e:e) : e =
     | IL.Unop(IL.D2I,e1) => d2i (se_e E e1)
 
 fun se_ss (E:env) (ss:ss) : ss =
-    case ss of
+    case peep ss of
       nil => nil
     | s::ss2 =>
       case s of
@@ -655,17 +664,21 @@ fun se_ss (E:env) (ss:ss) : ss =
         end
       | IL.Decl(n,SOME e) =>
         let val e = se_e E e
+	    (* val () = assert_name(E,n) *)
             val E2 = (n,EqI e)::E
             val ss2 = se_ss E2 ss2
         in Decl(n,SOME e) :: ss2
         end
       | IL.Decl(n,NONE) =>
-        let val ss2 = se_ss E ss2
+        let (* val () = assert_name(E,n) *)
+ 	    val ss2 = se_ss E ss2
         in Decl(n,NONE) :: ss2
         end
       | IL.Assign(n,e) =>
         let val e = se_e E e
-            val E2 = (n,EqI e)::E
+	    val E' = env_cut E (N.singleton n)
+	    (* val () = assert_name(E',n) *)
+            val E2 = (*(n,EqI e)::*)E'   (* unsafe to add to environment *)
             val ss2 = se_ss E2 ss2
         in (n := e) :: ss2
         end
@@ -681,7 +694,8 @@ fun se_ss (E:env) (ss:ss) : ss =
             val defs_body = defs body
             val E' = env_cut E defs_body
             val e' = se_e E' e
-            val E2 = (n,GtEqI(I 0))::(n,LtI e')::E
+            val E2 = (n,GtEqI(I 0))::E'
+	    val	E2 = (n,LtI e')::E2
             val ss1 = se_ss E2 body
             val ss1 = rm_decls0 ss1
         in ForOptimize (se_ss E') (e', fn e => se_ss [(n,EqI e)] ss1) ss2
@@ -697,4 +711,21 @@ fun se_ss (E:env) (ss:ss) : ss =
             val ss2 = se_ss E' ss2
         in Ifs(e,ss0,ss1) ss2
         end
+
+(* Peep hole optimization *)
+and peep ss =
+    case ss of
+      IL.Decl(n,NONE) :: IL.Assign(n',e') :: ss' =>
+       if n = n' then 
+         peep(IL.Decl(n,SOME e') :: ss')
+       else ss
+    | IL.Decl(n,SOME e) :: IL.Assign(n',e') :: ss' =>
+       if n = n' then 
+         peep(IL.Decl(n,SOME(se_e [(n,EqI e)] e')) :: ss')
+       else ss
+    | IL.Assign(n,e) :: IL.Assign(n',e') :: ss' =>
+       if n = n' then 
+         peep((n := (se_e [(n,EqI e)] e')) :: ss')
+       else ss
+    | _ => ss
 end

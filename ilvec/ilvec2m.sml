@@ -158,11 +158,13 @@ fun unE' s t =
 
 fun opt_ss0 ss =
     let val ss = P.se_ss nil ss
+        val ss = P.se_ss nil ss
     in P.rm_decls0 ss
     end
 
 fun opt_ss e ss =
     let val ss = P.se_ss nil ss
+        val ss = P.se_ss nil ss
     in P.rm_decls (unE' "opt_ss" e) ss
     end
 
