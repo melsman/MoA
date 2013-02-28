@@ -4,7 +4,7 @@ signature ILAPL = sig
   type 'a m = 'a MVec t  (* APL vectors *)
 
   val zilde   : 'a T -> 'a m
-  val scl     : 'a t -> 'a m
+  val scl     : 'a T -> 'a t -> 'a m
   val vec     : 'a v -> 'a m
   val iota    : INT -> Int Num m
 
@@ -15,7 +15,7 @@ signature ILAPL = sig
   val rav0    : 'a m -> 'a v
 
 (*  val index   : Int Num v -> 'a m -> 'a m M *)
-  val each    : ('a t -> 'b t M) -> 'a m -> 'b m
+  val each    : 'b T -> ('a t -> 'b t M) -> 'a m -> 'b m
 
   val red     : ('a t * 'b t -> 'b t M) -> 'b t -> 'a m -> 'b t M
 

@@ -4,9 +4,9 @@ signature TERM = sig
   type t0
   type 'a M = 'a * (Program.ss -> Program.ss)
   val E : Program.e -> t0
-  val V : Program.e * (Program.e -> t0 M) -> t0
+  val V : IL.Type * Program.e * (Program.e -> t0 M) -> t0
   val unE : t0 -> Program.e option
-  val unV : t0 -> (Program.e * (Program.e -> t0 M)) option
+  val unV : t0 -> (IL.Type * Program.e * (Program.e -> t0 M)) option
 end
 
 functor ILvec(Term : TERM) 
@@ -54,24 +54,25 @@ fun uncurry f (x,y) = f x y
 
 local open P
 in
-  fun map f t =
+  fun map ty f t =
       case unV t of
-        SOME (n,g) => V(n, fn i => g i >>= f)
+        SOME (_,n,g) => V(ty, n, fn i => g i >>= f)
       | NONE => die "map: expecting vector"
 
   fun stride t v =
       case (unE t, unV v) of
-        (SOME n, SOME (m,g)) => 
+        (SOME n, SOME (ty,m,g)) => 
         let val n = max (I 1) n
-        in V(m / n, fn i => g(n * i))
+        in V(ty, m / n, fn i => g(n * i))
         end
       | (NONE, _) => die "stride: expecting expression"
       | _ => die "stride: expecting vector"
 
-  fun map2 f t1 t2 =
+  fun map2 ty f t1 t2 =
       case (unV t1, unV t2) of
-        (SOME(n1,f1), SOME(n2,f2)) => 
-        V(min n1 n2, fn i => 
+        (SOME(_,n1,f1), SOME(_,n2,f2)) => 
+        V(ty, 
+          min n1 n2, fn i => 
                         f1 i >>= (fn v1 =>
                         f2 i >>= (fn v2 =>
                         f(v1,v2))))
@@ -79,13 +80,19 @@ in
 
   fun rev t =
       case unV t of
-        SOME(n,g) => V(n, fn i => g(n - i - I 1))
+        SOME(ty,n,g) => V(ty,n, fn i => g(n - i - I 1))
       | NONE => die "rev: expecting vector"
 
-  fun tabulate t f =
+  fun tabulate ty t f =
       case unE t of
-        SOME n => V(n,f o E)
+        SOME n => V(ty,n,f o E)
       | NONE => die "tabulate: expecting expression"
+
+  fun proto t =
+        if t = Int then I 0
+        else if t = Double then D 0.0
+        else if t = Bool then B true
+        else die ("proto: unsupported type " ^ prType t)
 
   fun dummy_exp t =
       if t = Int then I 666
@@ -93,30 +100,30 @@ in
       else if t = Bool then B false
       else die ("empty: unknown type " ^ prType t)
 
-  fun empty ty = V(I 0, fn _ => ret(E(dummy_exp ty)))
+  fun empty ty = V(ty, I 0, fn _ => ret(E(dummy_exp ty)))
 
   fun emptyOf t =
       case unV t of
-        SOME(_,f) => V(I 0, f)
-      | NONE => V(I 0, fn _ => ret t) (* die "emptyOf: expecting vector" *)
+        SOME(ty,_,f) => V(ty, I 0, f)
+      | NONE => (*V(I 0, fn _ => ret t)*) die "emptyOf: expecting vector"
 
-  fun single t = V(I 1, fn _ => ret t)
+  fun single ty t = V(ty, I 1, fn _ => ret t)
 
   fun tk t v =
       case (unE t, unV v) of
-        (SOME n, SOME (m,g)) => V(min n m, g)
+        (SOME n, SOME (ty,m,g)) => V(ty,min n m, g)
       | (NONE, _) => die "tk: expecting expression"
       | _ => die "tk: expecting vector"
              
   fun dr t v =
       case (unE t, unV v) of
-        (SOME n, SOME(m,g)) => V(max (m-n) (I 0), fn i => g(i+n))
+        (SOME n, SOME(ty,m,g)) => V(ty,max (m-n) (I 0), fn i => g(i+n))
       | (NONE, _) => die "dr: expecting expression"
       | _ => die "dr: expecting vector"
 
   fun length t =
       case unV t of
-        SOME (n,_) => E n
+        SOME (_,n,_) => E n
       | NONE => die "length: expecting vector"
 end
 
@@ -259,8 +266,8 @@ fun If0 (x,m1,m2) =
 
 fun If (x0,a1,a2) =
     case (unE x0, unV a1, unV a2) of
-      (SOME x, SOME (n1,f1), SOME (n2,f2)) =>
-      V(P.If(x,n1,n2), 
+      (SOME x, SOME (ty,n1,f1), SOME (_,n2,f2)) =>
+      V(ty,P.If(x,n1,n2), 
         fn i =>
            let val m1 = f1 i
                val m2 = f2 i
@@ -273,22 +280,20 @@ fun If (x0,a1,a2) =
 
 fun memoize t =
     case unV t of
-      SOME (n,f) =>
+      SOME (ty,n,f) =>
       let open P
-          val ty = typeComp "memoize" (f(I 0))
           val tyv = Type.Vec ty
           val name = Name.new tyv
           fun ssT ss = Decl(name, SOME(Alloc(tyv,n))) ::
                        (For(n, fn i => runM0(f i)(fn v => (name,i) ::= v)) ss)
-      in (V(n, fn i => ret(E(Subs(name,i)))), ssT)
+      in (V(ty,n, fn i => ret(E(Subs(name,i)))), ssT)
       end
     | _ => die "memoize: expecting vector"
            
-fun build2 N1 N2 f =
+fun build2 ty N1 N2 f =
     let open P
         val N1 = unE' "build.N1" N1
         val N2 = unE' "build.N2" N2
-        val ty = typeComp "build2" (f(E(I 0))(E(I 0)))
         val tyv = Type.Vec ty
         val name = Name.new tyv
         fun ssT ss =
@@ -298,7 +303,7 @@ fun build2 N1 N2 f =
                                   let val (v,ssT') = f (E i1) (E i2)
                                   in ssT' [(name,N1*i2+i1) ::= (unE' "build.f" v)]
                                   end) []) ss
-    in (V(N1*N2, fn i => ret(E(Subs(name,i)))), ssT)
+    in (V(ty,N1*N2, fn i => ret(E(Subs(name,i)))), ssT)
     end
     
 fun For'(n,e,body) =
@@ -332,12 +337,12 @@ fun For'(n,e,body) =
 fun foldl f e v =
     let open P
     in case (unE e, unV v) of
-         (SOME e, SOME (n,g)) =>
+         (SOME e, SOME (_,n,g)) =>
          let fun body e h i =
                  runM0 (g i >>= (fn v => f(v,E e))) h
          in For'(n,e,body)
          end
-       | (NONE, SOME (n,g)) =>
+       | (NONE, SOME (_,n,g)) =>
          (case unI n of
             SOME n =>
             let fun loop i a = if i >= n then ret a
@@ -352,7 +357,7 @@ fun foldl f e v =
 
 fun foldr f e v =
       case (unE e, unV v) of
-        (SOME e, SOME (n,g)) =>
+        (SOME e, SOME (_,n,g)) =>
         let open P
             fun body e h i =
                 runM0 (g (n - I 1 - i) >>= (fn v => f(v,E e))) h
@@ -363,13 +368,13 @@ fun foldr f e v =
                      
 fun concat v1 v2 =
     case (unV v1, unV v2) of
-      (SOME(n1,f1), SOME(n2,f2)) => 
+      (SOME(ty,n1,f1), SOME(_,n2,f2)) => 
       (case P.unI n1 of
          SOME 0 => v2
        | _ =>
          case P.unI n2 of
            SOME 0 => v1
-         | _ => V(P.+(n1,n2), 
+         | _ => V(ty,P.+(n1,n2), 
                   fn i => 
                      let val m1 = f1 i
                          val m2 = f2 (P.-(i,n1))
@@ -377,9 +382,9 @@ fun concat v1 v2 =
                      end))
     | _ => die "concat: expecting vectors"
              
-  fun fromList nil = empty Int
-    | fromList [t] = single t
-    | fromList (t::ts) = concat (single t) (fromList ts)
+  fun fromList ty nil = empty Int
+    | fromList ty [t] = single ty t
+    | fromList ty (t::ts) = concat (single ty t) (fromList ty ts)
 
   fun assert_vector s v =
       case unV v of
@@ -402,25 +407,30 @@ fun concat v1 v2 =
 
   infix ==
   fun eq f v1 v2 =
-      let val v = map2 (ret o f) v1 v2
+      let val v = map2 Bool (ret o f) v1 v2
           val base = length v1 == length v2
       in foldr (fn (b,a) => ret(If(a,b,a))) base v
       end
 
   fun sub_unsafe v i =
     case (unV v, unE i) of
-      (SOME (n,g), SOME i) => g i
+      (SOME (_,n,g), SOME i) => g i
     | _ => die "sub_unsafe: expecting vector and integer"
+
+  fun tyOfV v =
+      case unV v of
+          SOME (ty,_,_) => ty
+        | NONE => die "tyOfV: expecting vector"
 
   fun merge v n t =
       concat (tk (n - I 1) v)
-      (concat (single t) (dr (n + I 1) v))
+      (concat (single (tyOfV v) t) (dr (n + I 1) v))
 
   infix %
               
   fun trans v d =
       case (unV v, unV d) of
-        (SOME (n,f), SOME(m,g)) =>
+        (SOME (_,n,f), SOME(ty,m,g)) =>
         (case P.unI n of
            SOME 0 => d   (* known number of dimensions *)
          | SOME 1 => d
@@ -436,16 +446,16 @@ fun concat v1 v2 =
                                 | NONE => die "trans:impossible"
                    in g r
                    end))
-           in V(m,g')
+           in V(ty,m,g')
            end
          | SOME n => die ("trans: not implemented - " ^ Int.toString n)
          | NONE => die "trans: unknown number of dimensions not supported")
       | _ => die "trans: expecting vectors"
 
-  fun extend n e v =
+  fun extend n v =
       case (unE n, unV v) of
-        (SOME n', SOME(m,f)) =>
-        If(E m == I 0, V(n', fn _ => ret e), V(n',f o (fn i => P.%(i, m))))
+        (SOME n', SOME(ty,m,f)) =>
+        If(E m == I 0, V(ty,n', fn _ => ret (E(proto ty))), V(ty,n',f o (fn i => P.%(i, m))))
       | _ => die "extend: expecting term and array"
 
 end
@@ -453,7 +463,7 @@ end
 structure Term = struct
   type 'a M = 'a * (Program.ss -> Program.ss)
   datatype t0 = E of Program.e
-              | V of Program.e * (Program.e -> t0 M)
+              | V of IL.Type * Program.e * (Program.e -> t0 M)
   fun unE (E e) = SOME e
     | unE _ = NONE
   fun unV (V v) = SOME v

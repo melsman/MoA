@@ -1,5 +1,7 @@
 structure IL = struct
 
+fun die s = raise Fail ("IL." ^ s)
+
 datatype Type = Int | Double | Bool | Vec of Type
 
 structure Name : sig
@@ -328,24 +330,39 @@ in
 
   fun comp0 neg t acc =
       case t of
-        IL.I i => (if neg then Int.-(acc,i) else Int.+(acc,i), fn x => x)
-      | Binop(Add,a,b) => 
-        let val (acc, f) = comp0 neg a acc
-            val (acc, g) = comp0 neg b acc
-        in (acc, f o g)
-        end
-      | Binop(Sub,a,b) =>
-        let val (acc, f) = comp0 neg a acc
-            val (acc, g) = comp0 (not neg) b acc
-        in (acc, f o g)
-        end        
-      | Var _ => (acc, fn x => Binop(if neg then Sub else Add, x, t))
-      | _ => raise Fail "no"
+          IL.I i =>
+          let val a = case acc of
+                          SOME(IL.I a) => a
+                        | SOME _ => die "comp0: expecting I"
+                        | NONE => 0
+          in (SOME(IL.I(if neg then Int.-(a,i) else Int.+(a,i))), fn x => x)
+          end
+       | IL.D d =>
+          let val a = case acc of
+                          SOME(IL.D a) => a
+                        | SOME _ => die "comp0: expecting D"
+                        | NONE => 0.0
+          in (SOME(IL.D(if neg then Real.-(a,d) else Real.+(a,d))), fn x => x)
+          end
+        | Binop(Add,a,b) => 
+          let val (acc, f) = comp0 neg a acc
+              val (acc, g) = comp0 neg b acc
+          in (acc, f o g)
+          end
+        | Binop(Sub,a,b) =>
+          let val (acc, f) = comp0 neg a acc
+              val (acc, g) = comp0 (not neg) b acc
+          in (acc, f o g)
+          end        
+        | Var _ => (acc, fn x => Binop(if neg then Sub else Add, x, t))
+        | _ => raise Fail "no"
 
   and comp p a b =
       let val t = Binop(p,a,b)
-      in let val (acc, f) = comp0 false t 0
-         in f (I acc)
+      in let val (acc, f) = comp0 false t NONE
+         in case acc of
+                SOME a => f a
+              | NONE => t
          end handle Fail _ => t
       end
 

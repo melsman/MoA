@@ -5,9 +5,9 @@ fun die s = raise Fail ("ILapl." ^ s)
 
 structure P = Program
 structure Term = struct
-  type 'a M = 'a * (Program.ss -> Program.ss)
+  type 'a M = 'a * (P.ss -> P.ss)
   datatype t0 = E of P.e
-              | V of P.e * (P.e -> t0 M)
+              | V of IL.Type * P.e * (P.e -> t0 M)
               | MV of t0 * t0
   fun unE (E e) = SOME e
     | unE _ = NONE
@@ -38,8 +38,8 @@ end = struct
   type t = t0
   val concat   = concat
   val empty    = empty Int
-  val singlez  = single (I 0)
-  val single   = single
+  val singlez  = single Int (I 0)
+  val single   = single Int
   val product  : t -> INT M = foldl (ret o op *) (I 1)
   val length   : t -> INT = length
   val dr       : INT -> t -> t = dr
@@ -53,9 +53,9 @@ type 'a m = 'a MVec t
 (* invariant: MV(s,d) ==> product s = length d *) 
 
 fun vec c = MV(Shape.single (length c), c)
-fun scl v = MV(Shape.empty, single v)
+fun scl ty v = MV(Shape.empty, single ty v)
 fun zilde ty = MV(Shape.singlez, empty ty)
-fun iota n = vec (tabulate n (fn x => ret(x + (I 1))))
+fun iota n = vec (tabulate Int n (fn x => ret(x + (I 1))))
 fun shape0 t =
     case unMV t of
       SOME (f,_) => f
@@ -93,9 +93,9 @@ fun zildeOf a =
       SOME(f,v) => MV(Shape.singlez, emptyOf v)
     | NONE => die "zildeOf: expecting apl array"
 
-fun each g t =
+fun each ty g t =
     case unMV t of
-      SOME (f,cs) => MV(f, ILvec.map g cs)
+      SOME (f,cs) => MV(f, ILvec.map ty g cs)
     | NONE => die "each: expecting apl array"
       
 fun red g e t =
@@ -125,19 +125,19 @@ fun out (ty:'c T) (g: 'a t * 'b t -> 'c t) (xs: 'a m) (ys: 'b m) : 'c m M =
 fun sum ty g a b =
     let val sha = shape0 a
 	val shb = shape0 b
-        val mv = MV(sha,map2 g (snd a) (snd b))
+        val mv = MV(sha,map2 ty g (snd a) (snd b))
     in Shape.eq sha shb >>= (fn shapeeq =>
        ret(mif(shapeeq, mv, zilde ty)))
     end
 
 fun pre (a: 'a v) : 'a Vec v =
     let val n = length a
-        val iotan = tabulate n (fn x => ret(x + I 1))
-    in map (fn i => ret(tk i a)) iotan
+        val iotan = tabulate Int n (fn x => ret(x + I 1))
+    in map (Vec(tyOfV a)) (fn i => ret(tk i a)) iotan
     end
 
 fun mapm emp f xs = 
-    foldl (fn (x,a) => f x >>= (fn y => ret(concat a (single y)))) emp xs
+    foldl (fn (x,a) => f x >>= (fn y => ret(concat a (single (tyOfV a) y)))) emp xs
 
 fun scan0 g e a = 
     mapm (emptyOf e) (foldl (ret o g) e) (pre a)
@@ -147,7 +147,7 @@ fun scan g e t =
       SOME (f,c) => scan0 g e c >>= (fn c' => ret(MV(f,c')))
     | NONE => die "scan: expecting moa array"
 
-fun pad1 s = If(length s == I 0, single (I 1), s) 
+fun pad1 s = If(length s == I 0, single Int (I 1), s) 
 fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
     case (unMV t1, unMV t2) of
       (SOME (s1,d1), SOME (s2,d2)) =>
@@ -157,7 +157,7 @@ fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
           val s2' = Shape.dr (I 1) s2
           val v1 = Shape.tk (I 1) s1
           val v2 = Shape.tk (I 1) s2
-          val x = map2 (ret o op +) v1 v2
+          val x = map2 Int (ret o op +) v1 v2
           val mv = MV(Shape.concat x s1',
                       concat d1 d2)
       in Shape.eq s1' s2' >>= (fn shapeeq =>
@@ -191,7 +191,7 @@ fun rotate n t =
 
 fun reshape (f: Int v) (a: 'a m) : 'a m M =
     Shape.product f >>= (fn p =>
-    ret(MV(f,extend p (I 0) (snd a))))
+    ret(MV(f,extend p (snd a))))
 
 fun transpose t =
     case unMV t of
@@ -210,10 +210,10 @@ fun reduce f e t scalar vector =
               let 
               in sub_unsafe s (I 0) >>= (fn M =>
                  sub_unsafe s (I 1) >>= (fn N =>
-                 let val counter = tabulate M ret
+                 let val counter = tabulate Int M ret
                  in foldl (fn (i,a) =>
                               let val v = tk N (dr (i*N) d)
-                              in foldl f e v >>= (fn x => ret(concat (single x) a))
+                              in foldl f e v >>= (fn x => ret(concat (single (tyOfV a) x) a))
                               end) (emptyOf d) counter >>= (fn v => ret(vector(vec v)))
                  end))
               end
@@ -229,22 +229,23 @@ fun prod f g e m1 m2 scalar array =
          (SOME (s1,d1), SOME(s2,d2)) => 
          let val r1 = length s1
              val r2 = length s2
+             val ty = tyOfV d1
          in case (unE r1, unE r2) of
               (SOME r1, SOME r2) =>
               (case (P.unI r1, P.unI r2) of
-                 (SOME 1, SOME 1) => foldl f e (map2 g d1 d2) >>= (fn v => ret(scalar v))
+                 (SOME 1, SOME 1) => foldl f e (map2 ty g d1 d2) >>= (fn v => ret(scalar v))
                | (SOME 2, SOME 2) =>  (* matrix: M x N *)
                  sub_unsafe s1 (I 0) >>= (fn M1 =>
                  sub_unsafe s2 (I 0) >>= (fn M2 =>
                  sub_unsafe s1 (I 1) >>= (fn N1 =>
                  sub_unsafe s2 (I 1) >>= (fn N2 =>                 
-                 let val s = fromList [M1,M2]           
+                 let val s = fromList Int [M1,M2]           
                  (* memo: check N1 = N2 *)
-                 in build2 M1 M2 (fn x => fn y =>
-                                             let val v1 = tk N1 (dr (x*N1) d1)
-                                                 val v2 = tk N2 (dr (y*N2) d2)
-                                             in foldl f e (map2 g v1 v2)
-                                             end) >>= (fn a => ret(array (MV(s,a))))
+                 in build2 ty M1 M2 (fn x => fn y =>
+                                        let val v1 = tk N1 (dr (x*N1) d1)
+                                            val v2 = tk N2 (dr (y*N2) d2)
+                                        in foldl f e (map2 ty g v1 v2)
+                                        end) >>= (fn a => ret(array (MV(s,a))))
                  end))))
                | (SOME n, SOME n') => die ("prod: rank " ^ Int.toString n ^ ", " ^ 
                                            Int.toString n' ^ " not supported")      
