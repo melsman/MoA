@@ -7,14 +7,22 @@ modules in Standard ML.
    implementations are included, including a version based on pull and
    push arrays.
 
- * `ilvec.mlb`. Implementation of code-generational one-dimensional
-   pull arrays. Some support for nested vectors.
+ * `ilvec/il.mlb`. Implementation of code-generational one-dimensional
+   pull arrays of type `INT * (INT -> Exp)`.
+
+ * `ilvec/il2m.mlb`. Implementation of code-generational one-dimensional
+   pull arrays of type `INT * (INT -> Exp M)`. Support for nested 
+   operations on vectors.
 
  * `moa.mlb`. Implementation of multi-dimensional array
    calculus. Makes use of `vec.mlb`.
 
  * `ilmoa.mlb`. Implementation of code-generational
-   multi-dimensional array calculus. Makes use of `ilvec.mlb`.
+   multi-dimensional array calculus. Makes use of `ilvec/il.mlb`.
+
+ * `ilapl.mlb`. Implementation of code-generational
+   multi-dimensional array calculus with APL semantics. Makes use 
+   of `il2m.mlb`.
 
 The "il" versions of the vector and array libraries are
 implementations that generate residual intermediate language "C like"
@@ -41,9 +49,9 @@ contains three implementations of the `VEC` signature:
      pull arrays in the sense that they support concatenation well,
      but drop and take operations not so well.
 
-The `ilvec/` folder contains two different vector libraries that
-support map fusion and generate residual (C-like) code. The second
-implementation (`il2.mlb`) supports nesting of vectors and thus,
+The `ilvec/` folder contains different vector libraries that
+support map fusion and generate residual (C-like) code. The
+`il2.mlb` implementation supports nesting of vectors and thus,
 nested folds. As an example, let's first construct a matrix containing
 the small multiplification table:
 
@@ -90,6 +98,12 @@ for (int n52 = 0; n52 < 10; n52++) {
 
 After executing the above code, the result is present in variable
 `n49`.
+
+The `il2m.mlb` implementation further extend the simpler solution with
+an implementation of pull-arrays that maps indexes to expression
+monads, so as to support simple implementations of
+matrix-multiplication and nested reductions along different axes of a
+multi-dimensional array.
 
 ## MoA - Multi-dimensional arrays
 
@@ -178,8 +192,6 @@ optimizations during target code generation. For instance, in the
 example above, we could recognize the opportunity to roll out the
 second for-loop one time, which will eliminate the continued test on
 variable `n479`.
-
-Notice that there are several more 
 
 ## More to come
 

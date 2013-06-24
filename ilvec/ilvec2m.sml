@@ -290,22 +290,6 @@ fun memoize t =
       end
     | _ => die "memoize: expecting vector"
            
-fun build2 ty N1 N2 f =
-    let open P
-        val N1 = unE' "build.N1" N1
-        val N2 = unE' "build.N2" N2
-        val tyv = Type.Vec ty
-        val name = Name.new tyv
-        fun ssT ss =
-            Decl(name, SOME(Alloc(tyv,N1*N2))) ::
-            For(N1, fn i1 =>
-                       For(N2, fn i2 =>
-                                  let val (v,ssT') = f (E i1) (E i2)
-                                  in ssT' [(name,N1*i2+i1) ::= (unE' "build.f" v)]
-                                  end) []) ss
-    in (V(ty,N1*N2, fn i => ret(E(Subs(name,i)))), ssT)
-    end
-    
 fun For'(n,e,body) =
     let open P
     in case unI n of
