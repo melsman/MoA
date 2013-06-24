@@ -25,6 +25,7 @@ end
 structure NameSet = OrderSet(struct type t = Name.t
                                     fun compare (x, y) = String.compare (Name.pr x, Name.pr y)
                              end)
+type kname = string
 
 datatype Value =
          IntV of int
@@ -47,15 +48,20 @@ datatype Exp =
 type Size = Exp
 type Index = Exp
              
-datatype Stmt =
-         For of Exp * (Exp -> Stmt list)
-       | Ifs of Exp * Stmt list * Stmt list
-       | Assign of Name.t * Exp
-       | AssignArr of Name.t * Exp * Exp
-       | Decl of Name.t * Exp option
-       | Nop
-       | Free of Name.t
-       | Ret of Exp
+datatype Stmt = For of Exp * (Exp -> Block)
+              | Ifs of Exp * Block * Block
+              | Assign of Name.t * Exp
+              | AssignArr of Name.t * Exp * Exp
+              | Decl of Name.t * Exp option
+              | Nop
+              | Free of Name.t
+              | Kcall of kname * Exp list
+              | Ret of Exp
+withtype Block = Stmt list
+
+type kd = kname * Name.t list * Block
+
+type p = kd list * Block
 
 fun eq(e1,e2) =
     case (e1, e2) of
@@ -169,6 +175,9 @@ signature PROGRAM = sig
   val Free : Name.t -> s
   val emp : s
   val unDecl : s -> (Name.t * e option) option
+
+  type kd = string * Name.t list * ss
+  type p = kd list * ss
 
   (* static evaluation *)
   datatype info = EqI of e
@@ -485,6 +494,9 @@ val F = IL.F
 
 type s = IL.Stmt
 type ss = s list
+type kd = string * Name.t list * ss
+type p = kd list * ss
+
 val emp = IL.Nop
 val Decl = IL.Decl
 val Ret = IL.Ret

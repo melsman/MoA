@@ -21,7 +21,7 @@ structure ILvec = ILvec(Term)
 open ILvec
 open Term
 
-infix >>= ==
+infix >>= == %
 
 structure Shape : sig
   type t = t0
@@ -160,8 +160,8 @@ fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
           val x = map2 Int (ret o op +) v1 v2
           val mv = MV(Shape.concat x s1',
                       concat d1 d2)
-      in Shape.eq s1' s2' >>= (fn shapeeq =>
-          ret(mif(shapeeq,mv,zildeOf t1)))
+      in ret mv (*Shape.eq s1' s2' >>= (fn shapeeq =>
+          ret(mif(shapeeq,mv,zildeOf t1)))*)
       end
     | _ => die "catenate: expecting moa arrays"
 
@@ -198,6 +198,11 @@ fun transpose t =
       SOME (s,d) => MV(rev s, trans s d)
     | NONE => die "APL.trans: expecting array"
 
+fun eOfT t =
+    case unE t of
+        SOME e => e
+      | NONE => die "APL.eOfT: expecting E"
+
 fun reduce f e t scalar vector =
     case unMV t of
       SOME (s,d) => 
@@ -205,23 +210,25 @@ fun reduce f e t scalar vector =
       in case unE r of
            SOME r =>
            (case P.unI r of
-              SOME 1 => foldl f e d >>= (fn x => ret(scalar x))
+              SOME 1 => foldl f e d >>= (ret o scalar)
             | SOME 2 =>  (* matrix: M x N *)
               let 
               in sub_unsafe s (I 0) >>= (fn M =>
                  sub_unsafe s (I 1) >>= (fn N =>
-                 let val counter = tabulate Int M ret
-                 in foldl (fn (i,a) =>
-                              let val v = tk N (dr (i*N) d)
-                              in foldl f e v >>= (fn x => ret(concat (single (tyOfV a) x) a))
-                              end) (emptyOf d) counter >>= (fn v => ret(vector(vec v)))
-                 end))
+                 ret (MV(Shape.single M,
+                    V(tyOfV d, eOfT M,
+                      fn i => foldl f e (tk N (dr (E i * N) d))))))) >>= (ret o vector)
               end
             | SOME n => die ("reduce: rank " ^ Int.toString n ^ " not supported")      
             | NONE => die "reduce: unknown rank not supported")
          | _ => die "reduce: expecting length to return an expression"
       end
     | _ => die "reduce: expecting vector"
+
+fun build2 ty M1 M2 f =
+    case unE (M1*M2) of
+        SOME N => ret (V(ty, N, fn i => f (E i / M2) (E i % M2)))
+      | NONE => die "build2.expecting expression"
            
 fun prod f g e m1 m2 scalar array =
     let val m2T = transpose m2
@@ -233,13 +240,14 @@ fun prod f g e m1 m2 scalar array =
          in case (unE r1, unE r2) of
               (SOME r1, SOME r2) =>
               (case (P.unI r1, P.unI r2) of
-                 (SOME 1, SOME 1) => foldl f e (map2 ty g d1 d2) >>= (fn v => ret(scalar v))
+                 (SOME 1, SOME 1) => 
+                 foldl f e (map2 ty g d1 d2) >>= (fn v => ret(scalar v))
                | (SOME 2, SOME 2) =>  (* matrix: M x N *)
                  sub_unsafe s1 (I 0) >>= (fn M1 =>
                  sub_unsafe s2 (I 0) >>= (fn M2 =>
                  sub_unsafe s1 (I 1) >>= (fn N1 =>
                  sub_unsafe s2 (I 1) >>= (fn N2 =>                 
-                 let val s = fromList Int [M1,M2]           
+                 let val s = fromList Int [M1,M2] 
                  (* memo: check N1 = N2 *)
                  in build2 ty M1 M2 (fn x => fn y =>
                                         let val v1 = tk N1 (dr (x*N1) d1)
