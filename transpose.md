@@ -45,14 +45,14 @@ as an integer list:
 ```
 Here is the result of compiling and executing the above program:
 
-   bash-3.2$ mlkit transpose.sml 
-   [reading source file:        transpose.sml]
-   [wrote X86 code file:        MLB/RI_GC/transpose.sml.s]
-   [wrote X86 code file:        MLB/RI_GC/base-link_objects.s]
-   [wrote executable file:      run]
-   bash-3.2$ ./run
-   a = (2 3){0 1 2 3 4 5}
-   b = (3 2){0 3 1 4 2 5}
+    bash-3.2$ mlkit transpose.sml 
+    [reading source file:        transpose.sml]
+    [wrote X86 code file:        MLB/RI_GC/transpose.sml.s]
+    [wrote X86 code file:        MLB/RI_GC/base-link_objects.s]
+    [wrote executable file:      run]
+    bash-3.2$ ./run
+    a = (2 3){0 1 2 3 4 5}
+    b = (3 2){0 3 1 4 2 5}
 
 In APL, transposition is generalised to multi-dimensional arrays by
 reversing the shape of the argument array. Here is the output of a
