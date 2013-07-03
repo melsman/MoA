@@ -21,10 +21,10 @@ as an integer list:
       ([M,N], (sz,f)) => (* invariant: sz = M*N *)
         ([N,M], (sz,
                  fn i =>
-		  let val t = M * N - 1
-		  in if i = t then f i
-		     else f ((N*i) mod t)
-		  end)
+                  let val t = M * N - 1
+                  in if i = t then f i
+                     else f ((N*i) mod t)
+                  end)
         )
      | _ => raise Fail "assuming 2-dimensional array"
   fun pp_list l = String.concatWith " " (map Int.toString l)
