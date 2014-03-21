@@ -191,7 +191,10 @@ structure ILUtil : ILUTIL = struct
         else % (ppB binop) %% par(pp e1 %% %"," %% pp e2)
       | Unop(Neg,e1) => %(ppU Neg) %% (pp e1)
       | Unop(unop,e1) => %(ppU unop) %% par(pp e1)
-      | Alloc (t,e1) => %"(" %% pp_t t %% %")malloc" %% par(pp e1)
+      | Alloc (t,e1) => 
+        let val t' = Type.vecElem t
+        in %"(" %% pp_t t %% %")malloc(sizeof(" %% pp_t t' %% %")*" %% pp e1 %% %")"
+        end
       | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
