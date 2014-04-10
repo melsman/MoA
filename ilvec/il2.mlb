@@ -2,6 +2,7 @@ local
    $(SML_LIB)/basis/basis.mlb
    ../kitlib/set.mlb
 in
+   type.sig
    il2.sml
    ilutil2.sig
    ilutil2.sml

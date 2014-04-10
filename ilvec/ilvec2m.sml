@@ -278,6 +278,8 @@ fun If (x0,a1,a2) =
         (SOME x, SOME a1, SOME a2) => E(P.If(x,a1,a2))
       | _ => die "If: expecting branches to be of same kind and cond to be an expression"
 
+fun LetI v f = f v
+
 fun memoize t =
     case unV t of
       SOME (ty,n,f) =>
@@ -441,6 +443,27 @@ fun concat v1 v2 =
         (SOME n', SOME(ty,m,f)) =>
         If(E m == I 0, V(ty,n', fn _ => ret (E(proto ty))), V(ty,n',f o (fn i => P.%(i, m))))
       | _ => die "extend: expecting term and array"
+
+  fun outmain outln =
+    ( outln "int main() {"
+    ; outln "  printf(\"%f\\n\", kernel(0));"
+    ; outln "  return 0;"
+    ; outln "}")
+
+  fun outprog ofile p =
+    let val body = pp_prog p
+        val os = TextIO.openOut ofile
+        fun outln s = TextIO.output (os, s^"\n")
+    in outln "#include <stdio.h>"
+     ; outln "#include <stdlib.h>"
+     ; outln "#include <math.h>"
+     ; outln "#include \"apl.h\""
+     ; outln body
+     ; outmain outln
+     ; TextIO.closeOut os
+     ; print ("Wrote file " ^ ofile ^ "\n")
+    end
+
 
 end
 

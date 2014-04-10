@@ -1,4 +1,4 @@
-signature ILVEC = sig
+signature ILBASE = sig
   include TYPE
   type 'a M    (* monad encapsulating program construction *)
   val >>=      : 'a M * ('a -> 'b M) -> 'b M
@@ -28,43 +28,14 @@ signature ILVEC = sig
   val min      : 'a NUM -> 'a NUM -> 'a NUM
   val ~        : 'a NUM -> 'a NUM
   val i2d      : INT -> DOUBLE
-  val d2i      : DOUBLE -> INT
   val If       : BOOL * 'a t * 'a t -> 'a t
-  val empty    : 'a T -> 'a v
-  val emptyOf  : 'a v -> 'a v
-  val single   : 'a T -> 'a t -> 'a v
   val fromList : 'a T -> 'a t list -> 'a v
-  val tabulate : 'a T -> INT -> (INT -> 'a t M) -> 'a v
-  val map      : 'b T -> ('a t -> 'b t M) -> 'a v -> 'b v
-  val rev      : 'a v -> 'a v
-  val stride   : INT -> 'a v -> 'a v
-  val tk       : INT -> 'a v -> 'a v
-  val dr       : INT -> 'a v -> 'a v
-  val map2     : 'c T -> ('a t * 'b t -> 'c t M) -> 'a v -> 'b v -> 'c v
-  val length   : 'a v -> INT
-  val memoize  : 'a v -> 'a v M
-  val foldl    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
-  val foldr    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
-  val concat   : 'a v -> 'a v -> 'a v
-  val eq       : ('a t * 'a t -> BOOL) -> 'a v -> 'a v -> BOOL M  
-  val flatten  : 'a T -> 'a Vec v -> 'a v M
-  val flattenOf : 'a v -> 'a Vec v -> 'a v M
-  val tyOfV    : 'a v -> 'a T
-
-  val merge    : 'a v -> INT -> 'a t -> 'a v
-
-  val trans    : Int Num v -> 'a v -> 'a v 
-  val extend   : INT -> 'a v -> 'a v
-  (* [extend n v] returns a vector of length n and values taken 
-   * from v (repeatedly), using the prototype element of v if v is 
-   * the empty vector. *)
-
-  val sub_unsafe  : 'a v -> INT -> 'a t M
 
   (* Compiled Programs *)
   type ('a,'b) prog
   val runM     : 'b T -> 'b t M -> (unit,'b) prog
   val runF     : 'a T * 'b T -> ('a t -> 'b t M) -> ('a,'b) prog
+  val outprog  : string -> ('a,'b)prog -> unit
  
   (* Values and Evaluation *)
   type 'a V
@@ -80,4 +51,45 @@ signature ILVEC = sig
   val eval     : ('a,'b) prog -> 'a V -> 'b V
   val pp_prog  : ('a,'b) prog -> string
   val ppV      : 'a V -> string
+end
+
+signature ILVEC = sig
+  include ILBASE
+  val tk       : INT -> 'a v -> 'a v
+  val dr       : INT -> 'a v -> 'a v
+
+  val merge    : 'a v -> INT -> 'a t -> 'a v
+  val concat   : 'a v -> 'a v -> 'a v
+
+  val foldl    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
+  val foldr    : ('a t * 'b t -> 'b t M) -> 'b t -> 'a v -> 'b t M
+  val stride   : INT -> 'a v -> 'a v
+  val length   : 'a v -> INT
+  val memoize  : 'a v -> 'a v M
+  val sub_unsafe  : 'a v -> INT -> 'a t M
+
+  val trans    : Int Num v -> 'a v -> 'a v 
+
+  val extend   : INT -> 'a v -> 'a v
+  (* [extend n v] returns a vector of length n and values taken 
+   * from v (repeatedly), using the prototype element of v if v is 
+   * the empty vector. *)
+
+  val flatten  : 'a T -> 'a Vec v -> 'a v M
+  val flattenOf : 'a v -> 'a Vec v -> 'a v M
+
+  val tyOfV    : 'a v -> 'a T
+
+  val rev      : 'a v -> 'a v
+
+  val empty    : 'a T -> 'a v
+  val emptyOf  : 'a v -> 'a v
+
+  val tabulate : 'a T -> INT -> (INT -> 'a t M) -> 'a v
+  val map      : 'b T -> ('a t -> 'b t M) -> 'a v -> 'b v
+  val map2     : 'c T -> ('a t * 'b t -> 'c t M) -> 'a v -> 'b v -> 'c v
+  val eq       : ('a t * 'a t -> BOOL) -> 'a v -> 'a v -> BOOL M  
+  val single   : 'a T -> 'a t -> 'a v
+  val d2i      : DOUBLE -> INT
+
 end

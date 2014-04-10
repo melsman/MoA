@@ -2,9 +2,10 @@ local
    $(SML_LIB)/basis/basis.mlb
    ../kitlib/set.mlb
 in
+   type.sig
+   ilvec2m.sig
    il2.sml
    ilutil2.sig
    ilutil2.sml
-   ilvec2m.sig
    ilvec2m.sml
 end

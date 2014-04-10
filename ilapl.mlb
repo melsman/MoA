@@ -1,7 +1,11 @@
 local
    $(SML_LIB)/basis/basis.mlb
+   uref.mlb
 in
    ilvec/il2m.mlb
    ilapl.sig
    ilapl.sml
+   apl.mlb
+   exp.sml
+   mla.sml
 end

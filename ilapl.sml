@@ -21,6 +21,28 @@ structure ILvec = ILvec(Term)
 open ILvec
 open Term
 
+val addi = op +
+val subi = op -
+val muli = op *
+val divi = op /
+val lti = op <
+val leqi = op <=
+val eqi = op ==
+val maxi = max
+val mini = min
+val negi = ~
+
+val addd = op +
+val subd = op -
+val muld = op *
+val divd = op /
+val ltd = op <
+val leqd = op <=
+val eqd = op ==
+val maxd = max
+val mind = min
+val negd = ~
+
 infix >>= == %
 
 structure Shape : sig
@@ -93,17 +115,17 @@ fun zildeOf a =
       SOME(f,v) => MV(Shape.singlez, emptyOf v)
     | NONE => die "zildeOf: expecting apl array"
 
-fun each ty g t =
+fun each _ ty g t =
     case unMV t of
       SOME (f,cs) => MV(f, ILvec.map ty g cs)
     | NONE => die "each: expecting apl array"
       
-fun red g e t =
+fun red _ _ g e t =
     case unMV t of
       SOME (f,c) => foldl g e c
     | NONE => die "red: expecting apl array"
 
-fun meq f t1 t2 =
+fun meq _ f t1 t2 =
     case (unMV t1, unMV t2) of
       (SOME (f1,c1), SOME (f2,c2)) =>
       Shape.eq f1 f2 >>= (fn shape_eq => 
@@ -122,7 +144,7 @@ fun out (ty:'c T) (g: 'a t * 'b t -> 'c t) (xs: 'a m) (ys: 'b m) : 'c m M =
        ret(MV(sh,c)))
     end
 *)
-fun sum ty g a b =
+fun sum _ _ ty g a b =
     let val sha = shape0 a
 	val shb = shape0 b
         val mv = MV(sha,map2 ty g (snd a) (snd b))
@@ -142,7 +164,7 @@ fun mapm emp f xs =
 fun scan0 g e a = 
     mapm (emptyOf e) (foldl (ret o g) e) (pre a)
 
-fun scan g e t =
+fun scan _ _ g e t =
     case unMV t of
       SOME (f,c) => scan0 g e c >>= (fn c' => ret(MV(f,c')))
     | NONE => die "scan: expecting moa array"
@@ -203,7 +225,7 @@ fun eOfT t =
         SOME e => e
       | NONE => die "APL.eOfT: expecting E"
 
-fun reduce f e t scalar vector =
+fun reduce _ f e t scalar vector =
     case unMV t of
       SOME (s,d) => 
       let val r = length s
@@ -230,7 +252,7 @@ fun build2 ty M1 M2 f =
         SOME N => ret (V(ty, N, fn i => f (E i / M2) (E i % M2)))
       | NONE => die "build2.expecting expression"
            
-fun prod f g e m1 m2 scalar array =
+fun prod _ f g e m1 m2 scalar array =
     let val m2T = transpose m2
     in case (unMV m1, unMV m2T) of
          (SOME (s1,d1), SOME(s2,d2)) => 
@@ -249,11 +271,13 @@ fun prod f g e m1 m2 scalar array =
                  sub_unsafe s2 (I 1) >>= (fn N2 =>                 
                  let val s = fromList Int [M1,M2] 
                  (* memo: check N1 = N2 *)
-                 in build2 ty M1 M2 (fn x => fn y =>
+                 in memoize d1 >>= (fn d1 =>
+                    memoize d2 >>= (fn d2 =>
+                    build2 ty M1 M2 (fn x => fn y =>
                                         let val v1 = tk N1 (dr (x*N1) d1)
                                             val v2 = tk N2 (dr (y*N2) d2)
                                         in foldl f e (map2 ty g v1 v2)
-                                        end) >>= (fn a => ret(array (MV(s,a))))
+                                        end) >>= (fn a => ret(array (MV(s,a))))))
                  end))))
                | (SOME n, SOME n') => die ("prod: rank " ^ Int.toString n ^ ", " ^ 
                                            Int.toString n' ^ " not supported")      
@@ -263,4 +287,7 @@ fun prod f g e m1 m2 scalar array =
        | _ => die "prod: expecting arrays"
     end
     
+fun lett _ = ret
+fun letm _ = ret
+
 end

@@ -55,7 +55,6 @@ datatype Stmt = For of Exp * (Exp -> Block)
               | Decl of Name.t * Exp option
               | Nop
               | Free of Name.t
-              | Kcall of kname * Exp list
               | Ret of Exp
 withtype Block = Stmt list
 
@@ -93,20 +92,6 @@ fun eq_s(s1,s2) =
 and eq_ss (nil,nil) = true
   | eq_ss (s1::ss1,s2::ss2) = eq_s(s1,s2) andalso eq_ss(ss1,ss2)
   | eq_ss _ = false
-end
-
-signature TYPE = sig
-  eqtype Int and Double and 'a Num  (* numeric types *)
-     and Bool                       (* booleans *)
-     and 'a Vec                     (* vectors *)
-
-  eqtype 'a T                       (* Type constructors *)
-  val Int      : Int Num T
-  val Double   : Double Num T
-  val Bool     : Bool T
-  val Vec      : 'a T -> 'a Vec T
-  val prType   : 'a T -> string
-  val vecElem  : 'a Vec T -> 'a T
 end
 
 structure Type : TYPE = struct

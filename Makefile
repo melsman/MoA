@@ -1,6 +1,5 @@
 
-MLKITLIB=$(HOME)/mlkit-4.3.6
-#MLCOMP=SML_LIB=$(MLKITLIB)/lib/mlkit $(MLKITLIB)/bin/mlkit
+#MLCOMP=mlkit
 MLCOMP=mlton
 
 UTEST_FILES=utest/utest.sig utest/utest.sml utest/utest.mlb
@@ -9,7 +8,7 @@ IL_FILES=ilvec/il.mlb ilvec/ilm.mlb ilvec/il.sml ilvec/ilutil.sig ilvec/ilutil.s
 IL2_FILES=ilvec/il2.mlb ilvec/il2.sml ilvec/ilutil2.sig ilvec/ilutil2.sml ilvec/ilvec2.sig ilvec/ilvec2.sml ilvec/test_il.sml ilvec/test_ilvec2.sml
 MOA_FILES=moa.sig moa.sml test_moa.sml moa.mlb
 ILMOA_FILES=ilmoa.sig ilmoa.sml test_ilmoa.sml
-ILAPL_FILES=ilapl.sig ilapl.sml test_ilapl.sml ilvec/il2m.mlb ilvec/ilvec2m.sml ilvec/ilvec2m.sig testilapl.mlb
+ILAPL_FILES=ilapl.sig ilapl.sml test_ilapl.sml mla.sml ilvec/il2m.mlb ilvec/ilvec2m.sml ilvec/ilvec2m.sig testilapl.mlb
 FILES=Makefile $(IL2_FILES) $(IL_FILES) $(UTEST_FILES) $(VEC_FILES) $(MOA_FILES) $(ILMOA_FILES) $(ILAPL_FILES)
 
 all: moa runvec runil runil2 ilmoa runilm runil2m runilmoa runilapl

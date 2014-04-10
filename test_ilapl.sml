@@ -30,34 +30,40 @@ fun tstmv s ty e f = tstM s ty e (ret o f)
 val zi = zilde Int
 val _ = tstmv "dim_zilde" Int "1" (fn () => dim zi)
 val _ = tstmv "dim_scl" Int "0" (fn () => dim(scl Int (I 28)))
-val _ = tstmv "dim_vec0" Int "1" (fn () => dim(vec (empty Int)))
-val _ = tstmv "dim_vec1" Int "1" (fn () => dim(vec (single Int (I 3))))
+(*val _ = tstmv "dim_vec0" Int "1" (fn () => dim(vec (empty Int))) *)
+val _ = tstmv "dim_vec1" Int "1" (fn () => dim(vec (fromList Int [I 3])))
 val _ = tstmv "dim_vec2" Int "1" (fn () => dim(vec (fromList Int [I 3,I 2])))
 
 val _ = tstmv "siz_zilde" Int "0" (fn () => siz zi)
 val _ = tstmv "siz_scl" Int "1" (fn () => siz(scl Int (I 45)))
-val _ = tstmv "siz_vec0" Int "0" (fn () => siz(vec (empty Int)))
-val _ = tstmv "siz_vec1" Int "1" (fn () => siz(vec (single Int (I 3))))
+(*val _ = tstmv "siz_vec0" Int "0" (fn () => siz(vec (empty Int)))*)
+val _ = tstmv "siz_vec1" Int "1" (fn () => siz(vec (fromList Int [I 3])))
 val _ = tstmv "siz_vec2" Int "2" (fn () => siz(vec (fromList Int [I 3,I 2])))
 
-fun sumv (v : Int Num v) : INT M = foldl(ret o op +) (I 0) v
+(*fun sumv (v : Int Num v) : INT M = foldl(ret o op +) (I 0) v*)
 
-val _ = tstmv "shape_zilde_len" Int "1" (fn () => length(shape zi))
+(*val _ = tstmv "shape_zilde_len" Int "1" (fn () => length(shape zi))*)
+(*
 val _ = tstM "shape_zilde_sum" Int "0" (fn () => 
                                                 let val mv = zi
                                                     val v = shape mv
                                                 in sumv v
                                                 end)
-val _ = tstmv "shape_scl" Int "0" (fn () => length(shape(scl Int (I 45))))
+*)
+(*val _ = tstmv "shape_scl" Int "0" (fn () => length(shape(scl Int (I 45))))*)
+(*
 val _ = tstmv "shape_vec0_len" Int "1" (fn () => length(shape(vec (empty Int))))
 val _ = tstM "shape_vec0_sum" Int "0" (fn () => sumv(shape(vec (empty Int))))
+*)
+(*
 val _ = tstmv "shape_vec1" Int "1" (fn () => length(shape(vec (single Int (I 3)))))
 val _ = tstmv "shape_vec2_len" Int "1" (fn () => length(shape(vec (fromList Int [I 3,I 2]))))
-val _ = tstM "shape_vec2_sum" Int "2" (fn () => sumv(shape(vec (fromList Int [I 3,I 2]))))
+*)
+(*val _ = tstM "shape_vec2_sum" Int "2" (fn () => sumv(shape(vec (fromList Int [I 3,I 2]))))*)
 
 infix === =-=
-fun a === b = meq (op ==) a b
-fun a =-= b = eq (op ==) a b
+fun a === b = meq Int (op ==) a b
+(*fun a =-= b = eq (op ==) a b*)
 
 fun tstT s f = tstM s Bool "true" f
 
@@ -67,18 +73,18 @@ val _ = tstT "rav2" (fn () => rav zi === zi)
 val _ = tstT "rav3" (fn () => rav A === A)
 
 val v22 = fromList Int [I 2,I 2]
-val v5 = single Int (I 5)
+val v5 = fromList Int [I 5]
 val _ = tstT "reshape0a" (fn () => reshape v5 A >>= (fn A' => reshape v22 A' >>= (fn A'' => rav A'' === A)))
 
 val _ = tstT "reshape0b" (fn () => reshape v22 zi >>= (fn z => 
                                                           reshape v22 (vec(fromList Int [I 0,I 0,I 0,I 0])) >>= (fn z1 =>
                                                               z === z1)))
 
-val _ = tstT "reshape1a" (fn () => reshape v22 A >>= (fn A' => shape A' =-= v22))
+(*val _ = tstT "reshape1a" (fn () => reshape v22 A >>= (fn A' => shape A' =-= v22))*)
 
 val _ = tstT "reshape1b" (fn () => reshape v22 A >>= (fn A' => rav A' === A))
 
-val _ = tstT "reshape2"  (fn () => reshape (single Int (siz A)) A >>= (fn A' => rav A === A'))
+val _ = tstT "reshape2"  (fn () => reshape (fromList Int [siz A]) A >>= (fn A' => rav A === A'))
 
 fun all s f l =
     let fun a n nil = ()
@@ -117,26 +123,30 @@ val _ = tstT "iota2" (fn () => iota (I 1) === vec(fromList Int [I 1]))
 val _ = tstT "iota3" (fn () => iota (I 0) === zi)
 
 val v2345 = fromList Int [I 2,I 3,I 4,I 5]
-val _ = tstT "each0" (fn () => each Int  (fn x => ret(x + (I 1))) zi === zi)
-val _ = tstT "each1" (fn () => each Int (fn x => ret(x + (I 1))) A === vec v2345)
+val _ = tstT "each0" (fn () => each Int Int (fn x => ret(x + (I 1))) zi === zi)
+val _ = tstT "each1" (fn () => each Int Int (fn x => ret(x + (I 1))) A === vec v2345)
 val _ = tstT "each2" (fn () => reshape v22 A >>= (fn A' =>
                                reshape v22 (vec v2345) >>= (fn A'' =>
-                               each Int (fn x => ret(x + (I 1))) A' === A'')))
+                               each Int Int (fn x => ret(x + (I 1))) A' === A'')))
 
 (*
 val _ = tst "fmap0" (fn () => A.fmap (A.zilde()) 4 == A.zilde())
 val _ = tst "fmap1" (fn () => A.fmap (A.vec [fn x => x+1, fn x => x+2]) 4 == A.vec[5,6])
 *)
 
-fun curry f x y = f(x,y)
-val _ = tstT "red1" (fn () => red (ret o op +) (I 0) A >>= (fn r => ret(r == (I 10))))
-val _ = tstT "red2" (fn () => red (ret o op +) (I 0) zi >>= (fn r => ret(r == (I 0))))
 
+fun redii x = red Int Int x
+fun reddd x = red Double Double x
+fun curry f x y = f(x,y)
+val _ = tstT "red1" (fn () => redii (ret o op +) (I 0) A >>= (fn r => ret(r == (I 10))))
+val _ = tstT "red2" (fn () => redii (ret o op +) (I 0) zi >>= (fn r => ret(r == (I 0))))
+
+fun scanii x = scan Int Int x
 val v46913 = fromList Int [I 4,I 6,I 9,I 13]
-val _ = tstT "scan1" (fn () => scan (op +) (I 3) A >>= (fn v => 
+val _ = tstT "scan1" (fn () => scanii (op +) (I 3) A >>= (fn v => 
                                v === vec v46913))
 val _ = tstT "scan2" (fn () => reshape v22 A >>= (fn A' =>
-                               scan (op +) (I 3) A' >>= (fn v =>
+                               scanii (op +) (I 3) A' >>= (fn v =>
                                reshape v22 (vec v46913) >>= (fn v' =>
                                v === v'))))
 
@@ -172,8 +182,12 @@ val C = vec (fromList[I 150,I 170])
 val _ = tstT "out7 - Prop10.5" (fn () => A ** B >>= (fn x => x**C >>= (fn v1 =>
                                          B ** C >>= (fn x => A**x >>= (fn v2 => v1 === v2)))))
 *)
-val _ = tstT "sum1" (fn () => sum Int (ret o op +) A B >>= (fn v => v === vec(fromList Int [I 11,I 22])))
-val _ = tstT "sum2" (fn () => sum Int (ret o op +) A (vec(fromList Int [I 1,I 2,I 3])) >>= (fn v => v === zi))
+
+fun sumiii x = sum Int Int Int x
+fun sumddd x = sum Double Double Double x
+
+val _ = tstT "sum1" (fn () => sumiii (ret o op +) A B >>= (fn v => v === vec(fromList Int [I 11,I 22])))
+val _ = tstT "sum2" (fn () => sumiii (ret o op +) A (vec(fromList Int [I 1,I 2,I 3])) >>= (fn v => v === zi))
 end
 
 (*
@@ -195,7 +209,7 @@ val _ = tst "pr4" (fn () => pr (A.reshape [0,2] (A.zilde())) = "[]")
 *)
 
 val _ = tstF "iota5" (Int, Int) (fn v => ret(siz(iota(v + I 2)))) (Iv 5) "7"
-val _ = tstF "red5" (Int, Int) (fn v => red (ret o op +) (I 0) (iota v)) (Iv 5) "15"
+val _ = tstF "red5" (Int, Int) (fn v => redii (ret o op +) (I 0) (iota v)) (Iv 5) "15"
 
 (* catenate *)
 
@@ -208,7 +222,7 @@ val _ = tstF "catenate1" (Int, Int) (fn v =>
 val _ = tstF "catenate2" (Int, Int) (fn v => 
                                         let val a = iota(v + I 2)
                                             val b = iota(v + I 3)
-                                        in catenate a b >>= (fn c => red (ret o op +) (I 0) c)
+                                        in catenate a b >>= (fn c => redii (ret o op +) (I 0) c)
                                         end) (Iv 5) "64"
 
 val _ = tstF "catenate3" (Int, Int) (fn v => 
@@ -217,7 +231,7 @@ val _ = tstF "catenate3" (Int, Int) (fn v =>
                                         in reshape (fromList Int [I 4,I 2]) a >>= (fn a1 =>
                                            reshape (fromList Int [I 3,I 2]) b >>= (fn b1 =>
                                            catenate a1 b1 >>= (fn c =>
-                                           red (ret o op +) (I 0) c)))
+                                           redii (ret o op +) (I 0) c)))
                                         end) (Iv 5) "57"
 (*
 val _ = tstF "catenate4" (Type.Int, Type.Int) (fn v => 
@@ -252,16 +266,16 @@ val rotate = fn x => fn y => ret (rotate x y)
 val _ = tstF "rrotate1" (Int, Double) 
              (fn v => 
                  let val a = iota (v + I 2)
-                     val a = each Double (ret o i2d) a
+                     val a = each Int Double (ret o i2d) a
                  in catenate (scl Double (D 0.0)) a >>= (fn a =>
                     rotate (I ~1) a >>= (fn b => 
-                    red (ret o op +) (D 0.0) b))
+                    reddd (ret o op +) (D 0.0) b))
                  end) (Iv 5) "28.0"
 
 val _ = tstF "rrotate2" (Int, Int) 
              (fn v => 
                  let val a = iota (v + I 2)
-                     val a = each Double (ret o i2d) a
+                     val a = each Int Double (ret o i2d) a
                  in catenate (scl Double (D 0.0)) a >>= (fn a =>
                     rotate (I ~1) a >>= (fn b => 
                     ret (siz b)))
@@ -272,11 +286,12 @@ fun sub1 (x, a) = If(a == D 0.0, x, a - x)
 val _ = tstF "rrotate3" (Int, Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each Double (ret o i2d) a
+                     val a = each Int Double (ret o i2d) a
                  in rotate (I ~1) a >>= (fn b =>            (* 5 1 2 3 4 *)
-                    red (ret o sub1) (D 0.0) b)
+                    reddd (ret o sub1) (D 0.0) b)
                  end) (Iv 5) "-5.0"
 
+(*
 val _ = tstF "rrotate4" (Int, Int) 
              (fn v => 
                  let val a = iota v
@@ -284,16 +299,17 @@ val _ = tstF "rrotate4" (Int, Int)
                  in rotate (I ~1) a >>= (fn b =>
                     ret (length(shape b)))
                  end) (Iv 5) "1"
+*)
 
 fun diff (SIG (*:n*)) (*:n-1*) =
     rotate (I ~1) SIG >>= (fn r => 
-    sum Double (ret o op -) SIG r >>= (fn (r' (*:n*)) =>
+    sumddd (ret o op -) SIG r >>= (fn (r' (*:n*)) =>
     ret (drop (I 1) r'))) (* take (siz r' - I 1) r'))) *)
 
 val _ = tstF "diff0" (Int, Int)
              (fn v => 
                  let val a = iota v
-                     val a = each Double (ret o i2d) a
+                     val a = each Int Double (ret o i2d) a
                  in diff a >>= (fn b =>
                     ret (siz b))
                  end) (Iv 5) "4"
@@ -301,48 +317,52 @@ val _ = tstF "diff0" (Int, Int)
 val _ = tstF "diff1" (Int, Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each Double (ret o i2d) a
+                     val a = each Int Double (ret o i2d) a
                  in diff a >>= (fn b =>
-                    red (ret o sub1) (D 0.0) b)
+                    reddd (ret o sub1) (D 0.0) b)
                  end) (Iv 5) "0.0"
 
 val _ = tstF "diff2" (Int, Double) 
              (fn v => 
                  let val a = iota v
-                     val a = each Double (ret o i2d) a          (* 1 2 3 4 5 *)   (* 1  2  3  4  5 *)
+                     val a = each Int Double (ret o i2d) a          (* 1 2 3 4 5 *)   (* 1  2  3  4  5 *)
                  in diff a >>= (fn b =>                                    (* 5  1  2  3  4 *)
-                    red (ret o op +) (D 0.0) b)                            (*-4  1  1  1  1 *)
+                    reddd (ret o op +) (D 0.0) b)                            (*-4  1  1  1  1 *)
                  end) (Iv 5) "4.0"
 
 val _ = tstF "diff3" (Int, Int) 
              (fn v => 
                  let val a = iota v
-                     val a = each Double (ret o i2d) a                 
+                     val a = each Int Double (ret o i2d) a                 
                  in catenate (scl Double (D 0.0)) a >>= (fn a => 
                     diff a >>= (fn b => ret (siz b)))
                  end) (Iv 5) "5"
 
-fun prodv v = foldl (ret o op *) (I 1) v
+(*fun prodv v = foldl (ret o op * ) (I 1) v*)
 
+(*
 val _ = tstF "catenate9" (Int, Int) 
              (fn v => 
                  let val a = iota v
                      val a = each Double (ret o i2d) a                 
                  in catenate (scl Double (D 0.0)) a >>= (fn a => prodv (shape a))
                  end) (Iv 5) "6"
+*)
 
+(*
 val _ = tstF "catenate10" (Int, Int) 
              (fn v => 
                  let val a = iota v
                      val a = each Double (ret o i2d) a                 
                  in catenate (scl Double (D 0.0)) a >>= (fn a => ret (length (shape a)))
                  end) (Iv 5) "1"
+*)
 
-fun maxsv s v = each Double (fn x => ret(max x s)) v
-fun minsv s v = each Double (fn x => ret(min x s)) v
-fun prodsv s v = each Double (fn x => ret(x * s)) v
-fun addsv s v = each Double (fn x => ret(x + s)) v
-fun divv v1 v2 = sum Double (ret o op /) v1 v2
+fun maxsv s v = each Double Double (fn x => ret(max x s)) v
+fun minsv s v = each Double Double (fn x => ret(min x s)) v
+fun prodsv s v = each Double Double (fn x => ret(x * s)) v
+fun addsv s v = each Double Double (fn x => ret(x + s)) v
+fun divv v1 v2 = sumddd (ret o op /) v1 v2
 
 fun signal0 (SIG (*:n*)) =
     catenate (scl Double (D 0.0)) SIG >>= (fn (c (*:n+1*)) =>
@@ -360,17 +380,17 @@ fun absplus (x,a) =
 val _ = tstF "catenate8" (Int, Double)
              (fn n =>
                  let val v = iota (I 2 * n)
-                     val v = each Double (ret o i2d) v
-                     val v = each Double (fn d => ret(d / D 2.0)) v                             
+                     val v = each Int Double (ret o i2d) v
+                     val v = each Double Double (fn d => ret(d / D 2.0)) v                             
                  in catenate (scl Double (D 0.0)) v >>= (fn v' => (* v'=[0.0 0.5 1.0 ... 100.0]; sum(v') = 100*100+50 *)
-                    red (ret o absplus) (D 0.0) v')
+                    reddd (ret o absplus) (D 0.0) v')
                  end) (Iv 100) "10050.0"
 
 val _ = tstF "signal0" (Int, Int)
              (fn n =>
                  let val v = iota (I 2 * n)
-                     val v = each Double (ret o i2d) v
-                     val v = each Double (fn d => ret(d / D 2.0)) v                             
+                     val v = each Int Double (ret o i2d) v
+                     val v = each Double Double (fn d => ret(d / D 2.0)) v                             
                  in signal0 v >>= (fn v' => ret (siz v'))
                  end) (Iv 100) "200"
 
@@ -379,11 +399,11 @@ val _ = tstF "signal" (Int, Double)
                  let val n = I 500
                      val v = iota (I 2 * n)
                      infix %
-                     val v = each Int (fn x => ret(x % (I 200))) v
-                     val v = each Double (ret o i2d) v
-                     val v = each Double (fn d => ret(d / D 2.0)) v
+                     val v = each Int Int (fn x => ret(x % (I 200))) v
+                     val v = each Int Double (ret o i2d) v
+                     val v = each Double Double (fn d => ret(d / D 2.0)) v
                  in mem v >>= (fn v =>
-                    signal v >>= (fn v' => red (ret o op +) (D 0.0) v'))
+                    signal v >>= (fn v' => reddd (ret o op +) (D 0.0) v'))
                  end) (Iv (500)) "1210.17620977" 
 
 val () = finish()                           
