@@ -27,9 +27,12 @@ signature APL = sig
                   -> 'c t -> 'a t -> 'b t -> 'c t
   val zipWith   : 'c -> ('a t * 'b t -> 'c t) -> 'a t -> 'b t -> 'c t
   val transpose : 'a t -> 'a t
+  val transpose2: int t * 'a t -> 'a t
+  val reverse   : 'a t -> 'a t
   val rotate    : int t * 'a t -> 'a t
   val drop      : int t * 'a t -> 'a t
   val take      : int t * 'a t -> 'a t
+  val first     : 'a t -> 'a t
   val iff       : bool t * (unit -> 'a t) * (unit -> 'a t) -> 'a t
 
   val pr        : ('a -> string) -> 'a t -> string

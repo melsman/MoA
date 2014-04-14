@@ -14,20 +14,26 @@ signature EXP_TYPE = sig
   val IntB     : bty
   val BoolB    : bty
   val DoubleB  : bty
-  val Int      : typ
   val isInt    : bty -> bool
   val isDouble : bty -> bool
   val isBool   : bty -> bool
+  val Int      : typ
   val Bool     : typ
   val Double   : typ
-  val Sh       : rnk -> typ
+  val Fun      : typ * typ -> typ
+  val Sh       : rnk -> typ                (* Integer-vectors of a certain length *)
+  val Si       : rnk -> typ                (* Singleton integer *)
+  val Vi       : rnk -> typ                (* Singleton one-element integer-vector *)
   val Arr      : bty -> rnk -> typ
   val Vec      : typ -> typ                (* assert argument is a scalar type *)
   val unArr    : typ -> (bty * rnk) option
-  val Fun      : typ * typ -> typ
+  val unSh     : typ -> rnk option
+  val unSi     : typ -> rnk option
+  val unVi     : typ -> rnk option
   val unFun    : typ -> (typ * typ) option
   val TyVar    : unit -> typ
   val TyVarB   : unit -> bty
+  val subtype  : typ -> typ -> string option
   val unify    : typ -> typ -> string option
   val unifyB   : bty -> bty -> string option
   val prType   : typ -> string
@@ -64,6 +70,13 @@ signature EXP = sig
   datatype 't report = OK of 't | ERR of string
   val typeExp  : env -> exp -> typ report
 
+  val Iff_e    : exp * exp * exp -> exp
+  val Vc_e     : exp list -> exp
+  val Op_e     : opr * exp list -> exp
+  val Let_e    : var * typ * exp * exp -> exp
+  val Fn_e     : var * typ * exp -> exp
+  val typeOf   : exp -> typ
+
   type value
   type denv
   val empDEnv  : denv
@@ -93,11 +106,14 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                               SOME s' => raise Fail (s' ^ " in " ^ s)
                             | NONE => bt)
         | NONE =>
-          let val bt = TyVarB()
-          in case unify t (Arr bt (rnk 0)) of
-                 SOME s' => raise Fail (s' ^ " in " ^ s)
-               | NONE => bt
-          end
+          case unSi t of
+              SOME _ => IntB
+            | NONE => 
+              let val bt = TyVarB()
+              in case unify t (Arr bt (rnk 0)) of
+                     SOME s' => raise Fail (s' ^ " in " ^ s)
+                   | NONE => bt
+              end
 
   fun unBinFun s ty =
       let fun err t = 
@@ -116,14 +132,20 @@ functor Exp(T : EXP_TYPE) : EXP = struct
       case unArr t of
           SOME p => p
         | NONE =>
-          let val tv = TyVarB()
-              val r = RnkVar()
-          in case unify t (Arr tv r) of
-                 NONE => (tv,r)
-               | SOME _ => 
-                 raise Fail ("expecting array type, but got "
-                             ^ prType t ^ " in " ^ s)
-          end
+          (case unSh t of
+               SOME _ => (IntB,rnk 1)
+             | NONE => 
+               (case unVi t of
+                    SOME _ => (IntB,rnk 1)
+                  | NONE => 
+                    let val tv = TyVarB()
+                        val r = RnkVar()
+                    in case unify t (Arr tv r) of
+                           NONE => (tv,r)
+                         | SOME _ => 
+                           raise Fail ("expecting array type, but got "
+                                       ^ prType t ^ " in " ^ s)
+                    end))
 
   fun unFun' s t =
       case unFun t of
@@ -168,6 +190,8 @@ functor Exp(T : EXP_TYPE) : EXP = struct
   val assertR = assert0 unifyR
   val assertB = assert0 unifyB
   
+  val assert_sub = assert0 subtype
+
   fun isBinOpIII opr =
       isIn opr ["addi","subi","muli","divi","maxi","mini","mod"]
 
@@ -180,15 +204,219 @@ functor Exp(T : EXP_TYPE) : EXP = struct
   fun isBinOpDDB opr =
       isIn opr ["ltd","leqd","eqd"]
 
-  fun conssnoc opr ty E e1 e2 =
-      let val t2 = ty E e2
-          val (b1,r1) = unArr' ("first argument to " ^ opr) (ty E e1)
-          val (b2,r2) = unArr' ("second argument to " ^ opr) t2
-          val rv = RnkVarCon (fn i => unifyR r2 (rnk(i+1)))
-      in assertR ("arguments to " ^ opr) rv r1
-       ; assertB ("arguments to " ^ opr) b1 b2
-       ; t2
+  fun isInt' t =
+      case unArr t of
+          SOME (bt,r) => (case unRnk r of
+                              SOME 0 => isInt bt
+                            | _ => false)
+        | NONE => case unSi t of
+                      SOME _ => true
+                    | NONE => false
+
+  fun tyVc ts =
+      case ts of
+          nil => Arr (TyVarB()) (rnk 1)
+        | _ => 
+          let val oneInt = List.foldl (fn (e,a) => a orelse isInt' e) false ts
+              val t1 = hd ts
+              val () = if oneInt then List.app (fn t => assert_sub "vector" t Int) ts
+                       else List.app (fn t => assert "vector" t t1) (tl ts)
+          in if oneInt then 
+               case ts of
+                   [t] => (case unSi t of
+                               SOME r => Vi r
+                             | NONE => Sh(rnk(length ts)))
+                 | _ => Sh(rnk(length ts))
+             else let val (b,r) = unArr' "vector expression" t1
+                      val () = assertR "vector expression" r (rnk 0)
+                  in Arr b (rnk 1)                    (* vector type *)
+                  end
+          end
+
+  fun conssnoc opr t1 t2 =
+      let fun default() =
+              let val (b1,r1) = unArr' ("argument to " ^ opr) t1
+                  val (b2,r2) = unArr' ("argument to " ^ opr) t2
+                  val rv = RnkVarCon (fn i => unifyR r2 (rnk(i+1)))
+              in assertR ("arguments to " ^ opr) rv r1
+               ; assertB ("arguments to " ^ opr) b1 b2
+               ; t2
+              end
+      in case unSh t2 of
+             SOME r2 => (case unRnk r2 of
+                             SOME r2 => (assert_sub opr t1 Int; Sh(rnk(r2+1)))
+                           | NONE => default())
+           | NONE => default()
       end
+
+  fun tyOp opr ts =
+      case (opr, ts) of
+          ("zilde", nil) => tyVc nil
+        | ("iota", [t]) =>
+          (case unSi t of
+               SOME n => Sh n
+             | NONE => (assert_sub "iota expression" t Int;
+                        Arr IntB (rnk 1)))
+        | ("shape", [t]) =>
+          (case unSh t of
+               SOME n => Vi n
+             | NONE => 
+               let val (_,r) = unArr' "shape argument" t
+               in Sh r
+               end)
+        | ("reshape", [t1,t2]) =>
+          let val (bt,_) = unArr' "second argument to reshape" t2
+              val r = RnkVar()
+          in assert "first argument to reshape" (Sh r) t1;
+             Arr bt r
+          end
+        | ("take",[t1,t2]) =>
+          let fun default () =
+                  (assert "take" t2 (Arr(TyVarB())(RnkVar()));            
+                   t2)
+          in case unSi t1 of
+                 SOME r =>
+                 (case unRnk r of
+                      SOME r =>
+                      (case unArr t2 of
+                           SOME (bt, _) => if isInt bt then Sh(rnk(abs r))
+                                           else t2
+                         | NONE => 
+                           case unSh t2 of
+                               SOME _ => Sh(rnk(abs r))
+                             | NONE => case unVi t2 of
+                                           SOME _ => Sh(rnk(abs r))
+                                         | NONE => default())
+                    | NONE => default())
+               | NONE => (assert "first argument to take" Int t1;
+                          default())
+          end
+        | ("drop",[t1,t2]) =>
+          let fun default () = let val (bt,r) = unArr' "drop" t2;
+                              in assert_sub "first argument to drop" t1 Int; 
+                                 Arr bt r
+                              end
+          in case (unSi t1, unSh t2) of
+                 (SOME r1, SOME r2) =>
+                 (case (unRnk r1, unRnk r2) of
+                      (SOME r1, SOME r2) => Sh (rnk(abs(r2-abs r1)))
+                    | _ => default())
+               | _ => default()
+          end
+        | ("catenate",[t1,t2]) =>
+          let fun default() = 
+                  let val (bt1,r1) = unArr' "first argument to catenate" t1
+                      val (bt2,r2) = unArr' "second argument to catenate" t2
+                  in assertB "catenate" bt1 bt2
+                   ; assertR "catenate" r1 r2
+                   ; Arr bt1 r1
+                  end
+          in case (unSh t1, unSh t2) of
+                 (SOME r1, SOME r2) =>
+                 (case (unRnk r1, unRnk r2) of
+                      (SOME r1,SOME r2) => Sh(rnk(Int.+(r1,r2)))
+                    | _ => default())
+               | _ => default()
+          end
+        | ("cons",[t1,t2]) => conssnoc opr t1 t2
+        | ("snoc",[t1,t2]) => conssnoc opr t2 t1
+        | ("first",[t]) =>
+          let fun default() = 
+                  let val (bt,_) = unArr' "disclose argument" t
+                  in Arr bt (rnk 0)
+                  end
+          in case unVi t of
+                 SOME r => Si r
+               | NONE =>
+                 case unSh t of
+                     SOME _ => Int
+                   | NONE => default()
+          end
+        | ("transpose",[t]) => (unArr' "transpose" t; t)
+        | ("transpose2",[t1,t2]) =>
+          let val (bt,r) = unArr' "transpose2" t2
+          in assert "first argument to transpose2" (Sh r) t1;
+             t2
+          end
+        | ("rotate",[t1,t2]) =>
+          (unArr' "rotate" t2;
+           assert_sub "first argument to rotate" t1 Int;
+           t2)
+        | ("sum",[tf,t1,t2]) =>
+          let val (bt1,bt2,bt) = unBinFun "first argument to sum" tf
+              val (bt1',r1) = unArr' "sum first argument" t1
+              val (bt2',r2) = unArr' "sum second argument" t2
+          in assertB "first argument to sum" bt1 bt1'
+           ; assertB "second argument to sum" bt2 bt2'
+           ; assertR "sum argument ranks" r1 r2
+           ; Arr bt r1
+          end
+        | ("reduce", [tf,tn,tv]) =>
+          let val (bt1,bt2,bt) = unBinFun "first argument to reduce" tf
+              val btn = unScl "reduce neutral element" tn
+              val (btv,r) = unArr' "reduce argument" tv
+              val () = List.app (assertB "reduce function" btn) [bt1,bt2,bt,btv]
+              val rv = RnkVarCon (fn i => unifyR r (rnk(i+1)))
+              val rv' = RnkVarCon (fn i => unifyR rv (rnk(i-1)))
+          in assertR "reduce" rv' r
+           ; Arr bt rv
+          end
+        | ("each", [tf,tv]) =>
+          let val (bt,r) = unArr' "each" tv
+              val (bt1,bt2) = unFun' "first argument to each" tf
+          in assertB "each elements" bt1 bt;
+             Arr bt2 r
+          end
+        | ("prod",[tf,tg,tn,t1,t2]) =>
+          let val t = unScl "prod neutral element" tn
+              val (f1,f2,f3) = unBinFun "first argument to prod" tf
+              val (g1,g2,g3) = unBinFun "second argument to prod" tg
+              val (v1t,r1) = unArr' "prod" t1
+              val (v2t,r2) = unArr' "prod" t2
+              val () = List.app (fn (t1,t2) => assertB "prod" t1 t2) 
+                                [(f1,f2),(f2,f3),(f3,t),
+                                 (g1,g2),(g2,g3),(g3,t),
+                                 (v1t,v2t),(v2t,t)]
+              val rv = RnkVar()
+              val rv1 = RnkVarCon (fn i1 =>
+                                      let val rv2 = RnkVarCon (fn i2 =>
+                                                                  let val r = i1 + i2 - 2
+                                                                  in if r < 0 then SOME "Negative rank for prod"
+                                                                     else unifyR rv (rnk r)
+                                                                  end)
+                                      in unifyR rv2 r2
+                                      end)
+          in assertR "rank for prod" r1 rv1;
+             Arr t rv
+          end
+        | ("i2d",[t]) => (assert_sub opr t Int; Double)
+        | ("negi",[t]) => 
+          let fun default() = (assert_sub opr t Int; Int)
+          in case unSi t of
+                 NONE => default()
+               | SOME r => case unRnk r of
+                               SOME i => Si (rnk(~i))
+                             | NONE => default()
+          end
+        | ("negd",[t]) => (assert opr Double t; Double)
+        | (_,[t1,t2]) => 
+          if isBinOpIII opr then tyBin Int Int Int opr t1 t2
+          else if isBinOpDDD opr then tyBin Double Double Double opr t1 t2
+          else if isBinOpIIB opr then tyBin Int Int Bool opr t1 t2
+          else if isBinOpDDB opr then tyBin Double Double Bool opr t1 t2
+          else raise Fail ("binary operator " ^ qq opr ^ " not supported")
+        | _ => raise Fail ("operator " ^ qq opr ^ ", with " 
+                           ^ Int.toString (length ts) 
+                           ^ " arguments, not supported")
+  and tyBin t1 t2 t3 opr t1' t2' =
+      (assert_sub ("first argument to " ^ opr) t1' t1;
+       assert_sub ("second argument to " ^ opr) t2' t2;
+       t3)
+
+  fun tyIff (tc,t1,t2) =
+      ( assert "conditional expression" Bool tc
+      ; assert "else-branch" t1 t2
+      ; t1)
 
   datatype 't report = OK of 't | ERR of string
   fun typeExp (E:env) e : typ report =
@@ -197,33 +425,22 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                   Var(v, t0) => (case lookup E v of
                                      SOME t => (assert "var" t t0; t)
                                   |  NONE => raise Fail ("Unknown variable " ^ qq v))
-                | I _ => Int
+                | I n => Si (rnk n)
                 | D _ => Double
                 | B _ => Bool
                 | Iff (c,e1,e2,t0) =>
-                  let val t1 = ty E e1
-                  in assert "if" t1 t0
-                   ; assert "conditional expression" Bool (ty E c)
-                   ; assert "else-branch" t1 (ty E e2)
-                   ; t1
+                  let val t = tyIff(ty E c,ty E e1,ty E e2)
+                  in assert "if" t t0
+                   ; t0
                   end
-                | Vc(nil,t0) =>
-                  let val t = Arr (TyVarB()) (rnk 1)
-                  in assert "empty vector" t t0
-                   ; t
-                  end
-                | Vc (e::es,t0) =>
-                  let val t = ty E e
-                      val (b,r) = unArr' "vector expression" t
-                      val () = assertR "vector expression" r (rnk 0)
-                      val () = List.app (fn e => assert "vector element" t (ty E e)) es
-                      val t = if isInt b then Sh(rnk(1+length es))  (* shape type *)
-                              else Arr b (rnk 1)                    (* vector type *)
+                | Vc(es,t0) =>
+                  let val ts = List.map (ty E) es
+                      val t = tyVc ts
                   in assert "vector" t t0
                    ; t
                   end
                 | Let (v,t,e1,e2,t0) =>
-                  (assert ("let-binding of " ^ v) t (ty E e1);
+                  (assert_sub ("let-binding of " ^ v) (ty E e1) t;
                    let val t' = ty (add E v t) e2
                    in assert "let" t' t0
                     ; t'
@@ -234,111 +451,51 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                      Fun(t,t')
                   end
                 | Op (opr, es, t0) => 
-                  let val t = tyOp E opr es
-                  in assert opr t t0
+                  let val ts = List.map (ty E) es
+                      val t = tyOp opr ts
+                  in assert_sub opr t t0
                    ; t
                   end
-          and tyOp E opr es =
-              case (opr, es) of
-                  ("zilde", nil) => Arr (TyVarB()) (rnk 1)
-                | ("iota", [e]) => 
-                  (assert "iota expression" Int (ty E e);
-                   Arr IntB (rnk 1))  (* memo: could be shape! *)
-                | ("shape",[e]) =>
-                  let val (_,r) = unArr' "shape argument" (ty E e)
-                  in Sh r
-                  end
-                | ("reshape",[e1,e2]) =>
-                  let val t1 = ty E e1
-                      val t2 = ty E e2
-                      val (bt,_) = unArr' "second argument to reshape" t2
-                      val r = RnkVar()
-                  in assert "first argument to reshape" (Sh r) t1;
-                     Arr bt r
-                  end
-                | ("take",[e1,e2]) =>
-                  let val t1 = ty E e1
-                  in assert "first argument to take" Int t1;
-                     ty E e2
-                  end
-                | ("drop",[e1,e2]) =>
-                  let val t1 = ty E e1
-                  in assert "first argument to take" Int t1;
-                     ty E e2
-                  end
-                | ("catenate",[e1,e2]) =>
-                  let val t1 = ty E e1
-                      val t2 = ty E e2
-                  in assert "arguments to catenate" t1 t2
-                   ; t1
-                  end
-                | ("cons",[e1,e2]) => conssnoc opr ty E e1 e2
-                | ("snoc",[e1,e2]) => conssnoc opr ty E e2 e1
-                | ("transpose",[e]) => ty E e 
-                | ("sum",[f,e1,e2]) =>
-                  let val (bt1,bt2,bt) = unBinFun "first argument to sum" (ty E f)
-                      val (bt1',r1) = unArr' "sum first argument" (ty E e1)
-                      val (bt2',r2) = unArr' "sum second argument" (ty E e2)
-                  in assertB "first argument to sum" bt1 bt1'
-                   ; assertB "second argument to sum" bt2 bt2'
-                   ; assertR "sum argument ranks" r1 r2
-                   ; Arr bt r1
-                  end
-                | ("reduce", [f,n,v]) =>
-                  let val (bt1,bt2,bt) = unBinFun "first argument to reduce" (ty E f)
-                      val btn = unScl "reduce neutral element" (ty E n)
-                      val (btv,r) = unArr' "reduce argument" (ty E v)
-                      val () = List.app (assertB "reduce function" btn) [bt1,bt2,bt,btv]
-                      val rv = RnkVarCon (fn i => unifyR r (rnk(i+1)))
-                      val rv' = RnkVarCon (fn i => unifyR rv (rnk(i-1)))
-                  in assertR "reduce" rv' r
-                   ; Arr bt rv
-                  end
-                | ("each", [f,v]) =>
-                  let val (bt,r) = unArr' "each" (ty E v)
-                      val (bt1,bt2) = unFun' "first argument to each" (ty E f)
-                  in assertB "each elements" bt1 bt;
-                     Arr bt2 r
-                  end
-                | ("prod",[f,g,n,v1,v2]) =>
-                  let val t = unScl "prod neutral element" (ty E n)
-                      val (f1,f2,f3) = unBinFun "first argument to prod" (ty E f)
-                      val (g1,g2,g3) = unBinFun "second argument to prod" (ty E g)
-                      val (v1t,r1) = unArr' "prod" (ty E v1)
-                      val (v2t,r2) = unArr' "prod" (ty E v2)
-                      val () = List.app (fn (t1,t2) => assertB "prod" t1 t2) 
-                                        [(f1,f2),(f2,f3),(f3,t),
-                                         (g1,g2),(g2,g3),(g3,t),
-                                         (v1t,v2t),(v2t,t)]
-                      val rv = RnkVar()
-                      val rv1 = RnkVarCon (fn i1 =>
-                                              let val rv2 = RnkVarCon (fn i2 =>
-                                                                          let val r = i1 + i2 - 2
-                                                                          in if r < 0 then SOME "Negative rank for prod"
-                                                                             else unifyR rv (rnk r)
-                                                                          end)
-                                              in unifyR rv2 r2
-                                              end)
-                  in assertR "rank for prod" r1 rv1;
-                     Arr t rv
-                  end
-                | ("i2d",[e]) => (assert opr Int (ty E e); Double)
-                | ("negi",[e]) => (assert opr Int (ty E e); Int)
-                | ("negd",[e]) => (assert opr Double (ty E e); Double)
-                | (_,[e1,e2]) => 
-                  if isBinOpIII opr then tyBin Int Int Int opr E e1 e2
-                  else if isBinOpDDD opr then tyBin Double Double Double opr E e1 e2
-                  else if isBinOpIIB opr then tyBin Int Int Bool opr E e1 e2
-                  else if isBinOpDDB opr then tyBin Double Double Bool opr E e1 e2
-                  else raise Fail ("binary operator " ^ qq opr ^ " not supported")
-                | _ => raise Fail ("operator " ^ qq opr ^ ", with " 
-                                   ^ Int.toString (length es) 
-                                   ^ " arguments, not supported")
-          and tyBin t1 t2 t3 opr E e1 e2 =
-             (assert ("first argument to " ^ opr) t1 (ty E e1);
-              assert ("second argument to " ^ opr) t2 (ty E e2);
-              t3)
       in OK(ty E e) handle Fail s => ERR s
+      end
+
+  fun typeOf e : typ =
+      case e of
+          Var(_,t) => t
+        | I i => Si(rnk i)
+        | D _ => Double
+        | B _ => Bool
+        | Iff(_,_,_,t) => t
+        | Vc(_,t) => t
+        | Op(_,_,t) => t
+        | Let(_,_,_,_,t) => t
+        | Fn(v,t,e,t') => Fun(t,t')
+
+  fun Iff_e (c,e1,e2) =
+      let val t0 = tyIff(typeOf c, typeOf e1, typeOf e2)
+      in Iff(c,e1,e2,t0)
+      end
+         
+  fun Vc_e es =
+      let val ts = List.map typeOf es
+          val t = tyVc ts
+      in Vc(es,t)
+      end
+
+  fun Op_e (opr,es) =
+      let val ts = List.map typeOf es
+          val t = tyOp opr ts
+      in Op(opr,es,t)
+      end
+
+  fun Let_e (v,t,e,e') =
+      let val t' = typeOf e'
+      in Let(v,t,e,e',t')
+      end
+
+  fun Fn_e (v,t,e) =
+      let val t' = typeOf e
+      in Fn(v,t,e,t')
       end
 
   datatype bv = Ib of int
@@ -417,6 +574,8 @@ functor Exp(T : EXP_TYPE) : EXP = struct
           in case (opr,es) of
                  ("zilde", []) => Apl.zilde (default t)
                | ("i2d", [e]) => Apl.liftU (fn Ib i => Db(real i) | _ => raise Fail "eval:i2d") (eval DE e)
+               | ("negi", [e]) => Apl.liftU (fn Ib i => Ib(Int.~i) | _ => raise Fail "eval:negi") (eval DE e)
+               | ("negd", [e]) => Apl.liftU (fn Db i => Db(Real.~i) | _ => raise Fail "eval:negd") (eval DE e)
                | ("iota", [e]) => Apl.map Ib (Apl.iota (Apl.map unIb (eval DE e)))
                | ("reshape", [e1,e2]) =>
                  let val v1 = Apl.map unIb (eval DE e1)
@@ -434,7 +593,17 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                  let val v1 = Apl.map unIb (eval DE e1)
                  in Apl.take(v1,eval DE e2)
                  end
+               | ("rotate", [e1,e2]) =>
+                 let val v1 = Apl.map unIb (eval DE e1)
+                 in Apl.rotate(v1,eval DE e2)
+                 end
+               | ("reverse", [e]) => Apl.reverse (eval DE e)
+               | ("first", [e]) => Apl.first (eval DE e)
                | ("transpose", [e]) => Apl.transpose (eval DE e)
+               | ("transpose2", [e1,e2]) =>
+                 let val v1 = Apl.map unIb (eval DE e1)
+                 in Apl.transpose2(v1,eval DE e2)
+                 end
                | ("cons", [e1,e2]) => Apl.cons(eval DE e1,eval DE e2)
                | ("snoc", [e1,e2]) => Apl.snoc(eval DE e1,eval DE e2)
                | ("catenate", [e1,e2]) => Apl.catenate(eval DE e1,eval DE e2)

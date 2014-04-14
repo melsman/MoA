@@ -17,6 +17,8 @@ datatype b = IntT
            | Bv of bv 
 withtype bty = b uref
 datatype t = ShT of rnk
+           | SiT of rnk
+           | ViT of rnk
            | ArrT of bty * rnk
            | FunT of typ * typ 
            | TyvT of tv
@@ -47,6 +49,8 @@ in val IntB    = uref IntT
    val Bool    = Scl BoolB
 end
 fun Sh r = uref(ShT r)
+fun Si r = uref(SiT r)
+fun Vi r = uref(ViT r)
 fun Arr bt r = uref(ArrT(bt,r))
 fun Fun (t1,t2) = uref(FunT(t1,t2))
 
@@ -62,6 +66,8 @@ and prBty bty = prB(!!bty)
 and prT t =
     case t of
         ShT r => "Sh(" ^ prRnk r ^ ")"
+      | SiT r => "Si(" ^ prRnk r ^ ")"
+      | ViT r => "Vi(" ^ prRnk r ^ ")"
       | ArrT (bt,r) => "[" ^ prBty bt ^ "]" ^ prRnk r
       | FunT (t1,t2) => "(" ^ prTy t1 ^ ")->" ^ prTy t2
       | TyvT tv => tv
@@ -69,6 +75,9 @@ and prTy t = prT(!!t)
 val prType = prTy
 
 fun unArr t = case !!t of ArrT p => SOME p | _ => NONE
+fun unSh t = case !!t of ShT r => SOME r | _ => NONE
+fun unSi t = case !!t of SiT r => SOME r | _ => NONE
+fun unVi t = case !!t of ViT r => SOME r | _ => NONE
 fun unFun t = case !!t of FunT p => SOME p | _ => NONE
 
 fun comb f1 f2 t = case f1 t of NONE => f2 t | x => x
@@ -93,8 +102,8 @@ and combT (t1,t2) =
       | (t as ArrT (b1,r1), ArrT (b2,r2)) => (unifB b1 b2; unifR r1 r2; t) 
       | (t as FunT (t1,t2), FunT (t1',t2')) => (unif t1 t1'; unif t2 t2'; t)
       | (ShT r1, ShT r2) => (unifR r1 r2; t1)
-      | (ShT _, ArrT(b,r)) => (unifB IntB b; unifR r rnk1; t2)
-      | (ArrT(b,r), ShT _) => (unifB IntB b; unifR r rnk1; t1)
+      | (SiT r1, SiT r2) => (unifR r1 r2; t1)
+      | (ViT r1, ViT r2) => (unifR r1 r2; t1)
       | _ => raise Fail ("cannot unify " ^ prT t1 ^ " and " ^ prT t2)
 and unif t1 t2 = URef.unify combT (t1,t2)
 and combR (r1,r2) =
@@ -120,6 +129,25 @@ fun wrap f x y = (f x y; NONE) handle Fail s => SOME s
 val unify = wrap unif
 val unifyR = wrap unifR
 val unifyB = wrap unifB
+
+fun subtype t1 t2 =
+    case unSi t1 of
+        SOME r1 => (case unSi t2 of
+                        SOME r2 => unifyR r1 r2
+                      | NONE => unify t2 Int)
+      | NONE => 
+        case unVi t1 of
+            SOME r1 => (case unVi t2 of
+                            SOME r2 => unifyR r1 r2
+                          | NONE => case unSh t2 of
+                                        SOME r => unifyR rnk1 r
+                                      | NONE => unify t2 (Vec Int))
+          | NONE =>
+            case unSh t1 of
+                SOME r1 => (case unSh t2 of
+                                SOME r2 => unifyR r1 r2
+                              | NONE => unify t2 (Vec Int))
+              | NONE => unify t1 t2
 end            
 
 structure Exp = Exp(Ty)
@@ -139,51 +167,49 @@ fun vecElem t = raise Fail "vecElem"
 *)
 fun vecLength e =
     case e of
-        Vc(es,_) => List.length es
-      | _ => ~1
+        Vc(es,_) => SOME(List.length es)
+      | _ => NONE
 
 (* Expressions *)
-val addi = fn (x,y) => Op ("addi", [x,y], Ty.Int)
-val subi = fn (x,y) => Op ("subi", [x,y], Ty.Int)
-val muli = fn (x,y) => Op ("muli", [x,y], Ty.Int)
-val divi = fn (x,y) => Op ("divi", [x,y], Ty.Int)
-val lti = fn (x,y) => Op ("lti", [x,y], Ty.Int)
-val leqi = fn (x,y) => Op ("leqi", [x,y], Ty.Int)
-val eqi = fn (x,y) => Op ("eqi", [x,y], Ty.Int)
-val maxi = fn x => fn y => Op ("maxi", [x,y], Ty.Int)
-val mini = fn x => fn y => Op ("mini", [x,y], Ty.Int)
-val negi = fn x => Op ("negi", [x], Ty.Int)
+fun binOp opr (x,y) = Op_e(opr,[x,y])
+fun binOp' opr x y = Op_e(opr,[x,y])
+val addi = binOp "addi"
+val subi = binOp "subi"
+val muli = binOp "muli"
+val divi = binOp "divi"
+val lti  = binOp "lti"
+val leqi = binOp "leqi"
+val eqi  = binOp "eqi"
+val maxi = binOp' "maxi"
+val mini = binOp' "mini"
+fun negi x = Op_e("negi",[x])
+val addd = binOp "addd"
+val subd = binOp "subd"
+val muld = binOp "muld"
+val divd = binOp "divd"
+val ltd  = binOp "ltd"
+val leqd = binOp "leqd"
+val eqd  = binOp "eqd"
+val maxd = binOp' "maxd"
+val mind = binOp' "mind"
+fun negd x = Op_e("negd",[x])
 
-val addd = fn (x,y) => Op ("addd", [x,y], Ty.Double)
-val subd = fn (x,y) => Op ("subd", [x,y], Ty.Double)
-val muld = fn (x,y) => Op ("muld", [x,y], Ty.Double)
-val divd = fn (x,y) => Op ("divd", [x,y], Ty.Double)
-val ltd = fn (x,y) => Op ("ltd", [x,y], Ty.Double)
-val leqd = fn (x,y) => Op ("leqd", [x,y], Ty.Double)
-val eqd = fn (x,y) => Op ("eqd", [x,y], Ty.Double)
-val maxd = fn x => fn y => Op ("maxd", [x,y], Ty.Double)
-val mind = fn x => fn y => Op ("mind", [x,y], Ty.Double)
-val negd = fn x => Op ("negd", [x], Ty.Double)
+val i2d = fn x => Op_e ("i2d", [x])
+val op % = binOp "mod"
 
-val i2d = fn x => Op ("i2d", [x], Ty.Double)
-val op % = fn (x,y) => Op ("mod", [x,y], Ty.Int)
+fun If (b,e1,e2) = Iff_e(b,e1,e2)
 
-fun Op'(a,b) = Op(a,b,TyVar())
-fun Fn'(v,t,e) = Fn(v,t,e,TyVar())     
-fun Vc' e = Vc(e,TyVar())
-fun If (b,e1,e2) = Iff(b,e1,e2,TyVar())
-
-val fromList = fn _ => Vc'
-val op + = fn (x,y) => Op' ("add", [x,y])
-val op - = fn (x,y) => Op' ("sub", [x,y])
-val op * = fn (x,y) => Op' ("mul", [x,y])
-val op / = fn (x,y) => Op' ("div", [x,y])
-val op < = fn (x,y) => Op' ("lt", [x,y])
-val op <= = fn (x,y) => Op' ("leq", [x,y])
-val op == = fn (x,y) => Op' ("eq", [x,y])
-val max = fn x => fn y => Op' ("max", [x,y])
-val min = fn x => fn y => Op' ("min", [x,y])
-val ~ = fn x => Op' ("neg", [x])
+val fromList = fn _ => Vc_e
+val op + = fn (x,y) => Op_e ("add", [x,y])
+val op - = fn (x,y) => Op_e ("sub", [x,y])
+val op * = fn (x,y) => Op_e ("mul", [x,y])
+val op / = fn (x,y) => Op_e ("div", [x,y])
+val op < = fn (x,y) => Op_e ("lt", [x,y])
+val op <= = fn (x,y) => Op_e ("leq", [x,y])
+val op == = fn (x,y) => Op_e ("eq", [x,y])
+val max = fn x => fn y => Op_e ("max", [x,y])
+val min = fn x => fn y => Op_e ("min", [x,y])
+val ~ = fn x => Op_e ("neg", [x])
 
 type 'a t = exp
 type 'a v = exp
@@ -223,78 +249,109 @@ in fun newVar() = "v" ^ Int.toString (!c) before c := Int.+(!c,1)
 end
 
 type 'a MVec = unit
-type 'a m = exp * int
-fun zilde _ = (Op'("zilde",nil),1)
-fun scl _ t = (t,0)
-fun vec t = (t,1) (*Op'("vec",[t])*)
-fun iota t = (Op'("iota",[t]),1)
-fun siz (t,_) = Op'("siz",[t])
-fun dim (t,_) = Op'("dim",[t])   (* or I(#2 t) *)
-fun rav (t,_) = (Op'("rav",[t]),1)
-fun rav0 (t,_) = t
-fun each t _ f (e,r) =
+type 'a m = exp
+fun zilde _ = Op_e("zilde",nil)
+fun scl _ t = t
+fun vec t = t
+fun iota t = Op_e("iota",[t])
+fun iota' t = Op_e("iota",[t])
+fun first t = Op_e("first",[t])
+fun siz t = Op_e("siz",[t])
+fun dim t = Op_e("dim",[t])   (* or I(#2 t) *)
+fun rav t = Op_e("rav",[t])
+fun rav0 t = t
+fun each t _ f e =
     let val v = newVar()
-        val e0 = f (Var(v,TyVar())) (fn x => x)
-    in (Op'("each",[Fn'(v,t,e0),e]),r) 
+        val e0 = f (Var(v,t)) (fn x => x)
+    in Op_e("each",[Fn_e(v,t,e0),e])
     end
 fun mkFn2 t1 t2 f =
     let val (v1, v2) = (newVar(), newVar())
         val e0 = f (Var(v1,t1), Var(v2,t2))
-    in Fn'(v1,t1,Fn'(v2,t2,e0))
+    in Fn_e(v1,t1,Fn_e(v2,t2,e0))
     end
 fun mkFn2m t1 t2 f = mkFn2 t1 t2 (fn a => f a (fn x=>x))
 fun bin t1 t2 s f e1 e2 =
-    ret(Op'(s,[mkFn2 t1 t2 f,e1,e2]))
+    ret(Op_e(s,[mkFn2 t1 t2 f,e1,e2]))
 fun binm t1 t2 s f e1 e2 = 
     bin t1 t2 s (fn a => f a (fn x => x)) e1 e2
-fun red t1 t2 f n (e,_) = binm t1 t2 "red" f n e
-fun meq t f (e1,_) (e2,_) = bin t t "meq" f e1 e2
-fun mif (b,(e1,r1),(e2,r2)) = if r1 = r2 then (If(b,e1,e2),r1)
-                              else raise Fail "rank error: mif"
-fun sum t1 t2 _ f (e1,r1) (e2,r2) =
-    if r1 = r2 then binm t1 t2 "sum" f e1 e2 >>= (fn e => ret(e, r1))
-    else raise Fail "rank error: sum"
-fun scan t1 t2 f e1 (e2,r) = bin t1 t2 "scan" f e1 e2 >>= (fn e => ret(e,r))
-fun catenate (e1,r1) (e2,r2) =
-    if r1 = 0 andalso r2 = 0 then ret(Vc'[e1,e2],1)
-    else if r1 = r2 then ret(Op'("catenate", [e1,e2]),r1)
-    else if r1 = Int.+(r2,1) then ret(Op'("snoc",[e1,e2]),r1)
-    else if r2 = Int.+(r1,1) then ret(Op'("cons",[e1,e2]),r2)
-    else raise Fail "rank error: catenate"
-fun take e1 (e2,r) = (Op'("take", [e1,e2]),r)
-fun drop e1 (e2,r) = (Op'("drop", [e1,e2]),r)
-fun mem (e,r) = ret(Op'("mem",[e]),r)
-fun rotate e1 (e2,r) = (Op'("rotate", [e1,e2]),r)
-fun reshape e1 (e2,_) = 
-    let val r = vecLength e1
-    in ret(Op'("reshape", [e1,e2]),r)
+fun red t1 t2 f n e = binm t1 t2 "red" f n e
+fun meq t f e1 e2 = bin t t "meq" f e1 e2
+fun mif (b,e1,e2) = If(b,e1,e2)
+fun sum t1 t2 _ f e1 e2 = binm t1 t2 "sum" f e1 e2
+fun scan t1 t2 f e1 e2 = bin t1 t2 "scan" f e1 e2
+fun getRank s e =
+    let fun fail s = raise Fail ("rank error: " ^ s ^ 
+                                 " not supported for arguments of unknown rank")
+        val t = typeOf e
+    in case unSi t of
+           SOME _ => 0
+         | NONE =>
+       case unVi t of
+           SOME _ => 1
+         | NONE =>
+       case unSh t of
+           SOME _ => 1 
+         | NONE => 
+       case unArr t of
+           SOME (_, r) => (case unRnk r of SOME i => i
+                                         | NONE => fail s)
+         | NONE => fail s
     end
-fun shape (e,_) = Op'("shape",[e])
-fun prod t f g e (m1,r1) (m2,r2) s a =
+fun catenate e1 e2 =
+    let fun cat () = ret(Op_e("catenate", [e1,e2]))
+        fun cons () = ret(Op_e("cons",[e1,e2]))
+        fun snoc () = ret(Op_e("snoc",[e1,e2]))
+        open Int
+    in case (getRank "catenate" e1, getRank "catenate" e2) of
+           (0, 0) => ret(Vc_e[e1,e2])
+         | (r1, r2) => if r2=r1+1 then cons()
+                       else if r1=r2+1 then snoc()
+                       else if r1=r2 then cat()
+                       else raise Fail ("rank error: incompatible argument ranks for catenate: " 
+                                        ^ Int.toString r1 ^ " and " ^ Int.toString r2)
+    end
+fun abs i = let open Int
+            in if i < 0 then ~ i else i
+            end
+fun take e1 e2 = Op_e("take", [e1,e2])
+fun drop e1 e2 = Op_e("drop", [e1,e2])
+fun mem e = ret(Op_e("mem",[e]))
+fun rotate e1 e2 = Op_e("rotate", [e1,e2])
+fun reshape e1 e2 = ret(Op_e("reshape", [e1,e2]))
+fun shape e = Op_e("shape",[e])
+fun prod t f g e m1 m2 s a =
     let open Int
-        val r = if r1 < 1 orelse r2 < 1 then raise Fail "rank error: prod"
-                else r1 + r2 - 2
-        val res = Op'("prod",[mkFn2m t t f,mkFn2m t t g,e,m1,m2])
-    in if r = 0 then ret(s res)
-       else ret(a(res,r))
+        val r = case (getRank "prod" m1, getRank "prod" m2) of
+                    (0,_) => raise Fail "rank error: prod1"
+                  | (_,0) => raise Fail "rank error: prod2"
+                  | (r1,r2) => r1+r2-2
+        val res = Op_e("prod",[mkFn2m t t f,mkFn2m t t g,e,m1,m2])
+    in if r < 0 then raise Fail "rank error: prod3"
+       else if r = 0 then ret(s res)
+       else ret(a res)
     end
-fun reduce t f e1 (e2,r) s a =
+fun reduce t f e1 e2 s a =
     let open Int
-    in binm t t "reduce" f e1 e2 >>= 
-            (fn e => ret(if r < 1 then raise Fail "rank error: reduce"
-                         else if r > 1  then a(e,r-1) else s e))
+    in case getRank "reduce" e2 of
+           0 => ret(s e2)
+         | r => binm t t "reduce" f e1 e2 >>= 
+                     (fn e => ret(if r=1 then s e else a e))
     end
-fun transpose (e,r) = (Op'("transpose", [e]),r)
+fun transpose e = Op_e("transpose", [e])
+fun transpose2 e1 e2 = Op_e("transpose2", [e1,e2])
+fun reverse e = Op_e("reverse", [e])
 
-fun lett ty e = 
+fun lett _ e = 
     let val v = newVar()
-    in fn f => Let(v,ty,e,f (Var(v,ty)),TyVar())
+        val t = typeOf e
+    in fn f => Let_e(v,t,e,f(Var(v,t)))
     end
 
-fun letm ty (e,r) = 
-    let val v = newVar()   
-        val tv = TyVar()   (* memo: why this tyvar? *)
-    in fn f => Let(v,tv,e,f (Var(v,tv),r),TyVar())
+fun letm _ e =
+    let val v = newVar()
+        val t = typeOf e
+    in fn f => Let_e(v,t,e,f(Var(v,t)))
     end
 
 fun pp_exp e =
@@ -336,9 +393,8 @@ fun pp_exp e =
                 | Vc(es,_) => $"[" @@ pps (i+1) es @@ $"]"
                 | Op (opr,nil,_) => $opr
                 | Op (opr,es,_) => $opr @@ $"(" @@ pps (i+1+size opr) es @@ $")"
-                | Let (v,ty,e1,e2,_) => $"let " @@ $v @@ $":" @@ $(prType ty) @@ $" = " @@ pp (i+2) e1 @@
-                                         indent i @@ $"in " @@ pp (i+3) e2 @@ 
-                                         indent i @@ $"end"
+                | Let (v,ty,e1,e2,_) => $"let " @@ $v @@ $":" @@ $(prType ty) @@ $" = " @@ pp (i+2) e1 @@ $" in" @@ 
+                                         indent i @@ pp i e2
                 | Fn (v,t,e,_) =>
                   (case lookForOp [v] e of
                        SOME opr => $opr

@@ -27,6 +27,7 @@ signature ILAPL = sig
   val scl     : 'a T -> 'a t -> 'a m
   val vec     : 'a v -> 'a m
   val iota    : INT -> Int Num m
+  val iota'   : Int Num m -> Int Num m
 
   val siz     : 'a m -> INT
   val dim     : 'a m -> INT
@@ -58,9 +59,12 @@ signature ILAPL = sig
   val take    : INT -> 'a m -> 'a m
   val drop    : INT -> 'a m -> 'a m
 
+  val first   : 'a m -> 'a t
+
   val mem     : 'a m -> 'a m M
 
   val rotate  : INT -> 'a m -> 'a m
+  val reverse : 'a m -> 'a m
   val reshape : Int Num v -> 'a m -> 'a m M
   val shape   : 'a m -> Int Num v
 
@@ -70,4 +74,5 @@ signature ILAPL = sig
   val reduce  : 'a T -> ('a t * 'a t -> 'a t M) -> 'a t -> 'a m -> ('a t -> 'b) -> ('a m -> 'b) -> 'b M
 
   val transpose : 'a m -> 'a m
+  val transpose2 : Int Num v -> 'a m -> 'a m
 end

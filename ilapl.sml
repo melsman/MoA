@@ -76,8 +76,10 @@ type 'a m = 'a MVec t
 
 fun vec c = MV(Shape.single (length c), c)
 fun scl ty v = MV(Shape.empty, single ty v)
+fun first _ = raise Fail "ilapl.first unimplemented"
 fun zilde ty = MV(Shape.singlez, empty ty)
 fun iota n = vec (tabulate Int n (fn x => ret(x + (I 1))))
+fun iota' _ = raise Fail "ilapl.iota' not implemented"
 fun shape0 t =
     case unMV t of
       SOME (f,_) => f
@@ -219,6 +221,9 @@ fun transpose t =
     case unMV t of
       SOME (s,d) => MV(rev s, trans s d)
     | NONE => die "APL.trans: expecting array"
+
+fun transpose2 _ = raise Fail "ilapl.transpose2: not implemented"
+fun reverse _ = raise Fail "ilapl.reverse: not implemented"
 
 fun eOfT t =
     case unE t of

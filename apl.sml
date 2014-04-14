@@ -54,6 +54,12 @@ fun ravel (a : 'a t) : 'a t =
     in (V.fromList[V.length vs], vs, #3 a)
     end
 
+fun first (a : 'a t) : 'a t =
+    let val vs = #2 a
+        val v = if V.length vs > 0 then V.sub(vs,0) else #3 a
+    in scl v
+    end
+
 fun iota (n : int t) : int t =
     let val n = unScl "iota" n
     in (V.fromList[n], V.tabulate(n, fn x => x + 1), 0)
@@ -165,9 +171,9 @@ fun snoc (a,v) = catenate (a, ext v)
 fun zipWith (x:'c) (f: 'a t * 'b t -> 'c t) (a : 'a t) (b : 'b t) : 'c t =
     (#1 a, V.fromList(ListPair.map (unliftB "zipWith" f) (list(#2 a),list(#2 b))), x)
 
-fun rot (0,a) = a
-  | rot (n,nil) = nil
-  | rot (n,x::xs) = rot(n-1,xs@[x])
+fun rot 0 a = a
+  | rot n nil = nil
+  | rot n (x::xs) = rot (n-1) (xs@[x])
     
 fun iot n = List.tabulate(n, fn i => i+1)
         
@@ -185,7 +191,7 @@ fun dot f g n A B =
         val WA = tl shB @ shA
         val KA = length shA - 1
         val VA = iot (length WA)
-        val ZA = rot(KA, front VA) @ [last VA]
+        val ZA = rot KA (front VA) @ [last VA]
         val TA = transpose2(vec 0 ZA,reshape(vec 0 WA,A))
         val WB = front shA @ shB
         val KB = length shA
@@ -197,7 +203,24 @@ fun dot f g n A B =
     in reduce f n R1
     end
 
-fun rotate _ = raise Fail "rotate not implemented"
+fun reverse (a: 'a t) : 'a t =
+    let val sh = #1 a    
+    in if V.length sh > 1 then
+         raise Fail "apl.reverse: supported only for vectors and scalars"
+       else (sh,V.fromList (rev (list(#2 a))),#3 a)
+    end
+
+fun rotate (i : int t, a: 'a t) : 'a t =
+    let val i = unScl "rotate" i
+        val sh = #1 a
+        val p = prod (list sh)
+        fun find i = if i > 0 then i
+                     else find (p + i)
+        val i = find i
+    in if V.length sh > 1 then
+         raise Fail "apl.rotate: supported only for vectors and scalars"
+       else (sh,V.fromList (rot i (list(#2 a))),#3 a)
+    end
 
 structure Vs = VectorSlice
 fun drop (i : int t, a: 'a t) : 'a t =
@@ -210,7 +233,7 @@ fun drop (i : int t, a: 'a t) : 'a t =
               | _ => 
                 let val d = i * prod(tl sh)
                     val t = hd sh - i
-                in if t <= 1 then zilde (#3 a)
+                in if t < 1 then zilde (#3 a)
                    else let val sh' = t :: tl sh
                         in (V.fromList sh', Vs.vector(Vs.slice(#2 a, d, NONE)), #3 a)
                         end
