@@ -303,12 +303,12 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                     | _ => default())
                | _ => default()
           end
-        | ("catenate",[t1,t2]) =>
+        | ("cat",[t1,t2]) =>
           let fun default() = 
                   let val (bt1,r1) = unArr' "first argument to catenate" t1
                       val (bt2,r2) = unArr' "second argument to catenate" t2
-                  in assertB "catenate" bt1 bt2
-                   ; assertR "catenate" r1 r2
+                  in assertB "cat" bt1 bt2
+                   ; assertR "cat" r1 r2
                    ; Arr bt1 r1
                   end
           in case (unSh t1, unSh t2) of
@@ -332,9 +332,9 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                      SOME _ => Int
                    | NONE => default()
           end
-        | ("transpose",[t]) => (unArr' "transpose" t; t)
-        | ("transpose2",[t1,t2]) =>
-          let val (bt,r) = unArr' "transpose2" t2
+        | ("transp",[t]) => (unArr' "transp" t; t)
+        | ("transp2",[t1,t2]) =>
+          let val (bt,r) = unArr' "transp2" t2
           in assert "first argument to transpose2" (Sh r) t1;
              t2
           end
@@ -599,14 +599,14 @@ functor Exp(T : EXP_TYPE) : EXP = struct
                  end
                | ("reverse", [e]) => Apl.reverse (eval DE e)
                | ("first", [e]) => Apl.first (eval DE e)
-               | ("transpose", [e]) => Apl.transpose (eval DE e)
-               | ("transpose2", [e1,e2]) =>
+               | ("transp", [e]) => Apl.transpose (eval DE e)
+               | ("transp2", [e1,e2]) =>
                  let val v1 = Apl.map unIb (eval DE e1)
                  in Apl.transpose2(v1,eval DE e2)
                  end
                | ("cons", [e1,e2]) => Apl.cons(eval DE e1,eval DE e2)
                | ("snoc", [e1,e2]) => Apl.snoc(eval DE e1,eval DE e2)
-               | ("catenate", [e1,e2]) => Apl.catenate(eval DE e1,eval DE e2)
+               | ("cat", [e1,e2]) => Apl.catenate(eval DE e1,eval DE e2)
                | ("reduce", [f,n,a]) =>
                  let val F = unFb2 DE "reduce" f
                      val n = eval DE n

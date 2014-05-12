@@ -123,12 +123,17 @@ fun transpose (a: 'a t) : 'a t =
         #3 a)
     end
 
+fun exchange nil xs = nil
+  | exchange (i::I) xs = List.nth (xs,i-1) :: exchange I xs
+
+(*
 fun exchange I xs =
     let fun loop nil = nil
           | loop (i::I) =
             List.nth (xs,i-1)::loop I
     in loop I
     end
+*)
 
 fun transpose2 (I: int t, a: 'a t) : 'a t =
     let val I = list(#2 I)

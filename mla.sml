@@ -299,11 +299,11 @@ fun getRank s e =
          | NONE => fail s
     end
 fun catenate e1 e2 =
-    let fun cat () = ret(Op_e("catenate", [e1,e2]))
+    let fun cat () = ret(Op_e("cat", [e1,e2]))
         fun cons () = ret(Op_e("cons",[e1,e2]))
         fun snoc () = ret(Op_e("snoc",[e1,e2]))
         open Int
-    in case (getRank "catenate" e1, getRank "catenate" e2) of
+    in case (getRank "cat" e1, getRank "cat" e2) of
            (0, 0) => ret(Vc_e[e1,e2])
          | (r1, r2) => if r2=r1+1 then cons()
                        else if r1=r2+1 then snoc()
@@ -338,8 +338,8 @@ fun reduce t f e1 e2 s a =
          | r => binm t t "reduce" f e1 e2 >>= 
                      (fn e => ret(if r=1 then s e else a e))
     end
-fun transpose e = Op_e("transpose", [e])
-fun transpose2 e1 e2 = Op_e("transpose2", [e1,e2])
+fun transpose e = Op_e("transp", [e])
+fun transpose2 e1 e2 = Op_e("transp2", [e1,e2])
 fun reverse e = Op_e("reverse", [e])
 
 fun lett _ e = 
@@ -354,6 +354,19 @@ fun letm _ e =
     in fn f => Let_e(v,t,e,f(Var(v,t)))
     end
 
+fun prOpr t opr =
+    case (opr       , unSi t   , unVi t   , unSh t   ) of
+         ("first"   , SOME _   , _        , _        ) => opr ^ "Sh"
+      |  ("shape"   , _        , SOME _   , _        ) => opr ^ "Sh"
+      |  ("take"    , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("drop"    , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("cat"     , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("cons"    , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("snoc"    , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("iota"    , _        , _        , SOME _   ) => opr ^ "Sh"
+      |  ("rotate"  , _        , _        , SOME _   ) => opr ^ "Sh"
+      | _ => opr
+
 fun pp_exp e =
     let infix @@
         fun isVars nil nil = true
@@ -362,7 +375,7 @@ fun pp_exp e =
         fun lookForOp vs e =
             case e of
                 Fn(v,_,e',_) => lookForOp (v::vs) e'
-              | Op(opr,es,_) => if isVars (rev vs) es then SOME opr
+              | Op(opr,es,t) => if isVars (rev vs) es then SOME (opr,t)
                                 else NONE
               | _ => NONE
         val op + = Int.+
@@ -391,13 +404,13 @@ fun pp_exp e =
                     indent i' @@ pp i' e2
                 end
                 | Vc(es,_) => $"[" @@ pps (i+1) es @@ $"]"
-                | Op (opr,nil,_) => $opr
-                | Op (opr,es,_) => $opr @@ $"(" @@ pps (i+1+size opr) es @@ $")"
+                | Op (opr,nil,t) => $(prOpr t opr)
+                | Op (opr,es,t) => $(prOpr t opr) @@ $"(" @@ pps (i+1+size opr) es @@ $")"
                 | Let (v,ty,e1,e2,_) => $"let " @@ $v @@ $":" @@ $(prType ty) @@ $" = " @@ pp (i+2) e1 @@ $" in" @@ 
                                          indent i @@ pp i e2
                 | Fn (v,t,e,_) =>
                   (case lookForOp [v] e of
-                       SOME opr => $opr
+                       SOME (opr,t) => $(prOpr t opr)
                      | NONE => $("fn " ^ v ^ ":" ^ prType t ^ " => ") @@ pp (i+2) e)
         and pps i nil = $""
           | pps i [e] = pp i e
