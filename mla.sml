@@ -226,6 +226,8 @@ infix >>=
 fun (f : 'a M) >>= (g : 'a -> 'b M) : 'b M =
    fn k => f (fn x => g x k)
 
+fun fromListM t x = ret(fromList t x)
+
 (* Compiled Programs *)
 type ('a,'b) prog = exp
 fun runM _ m = m (fn x => x)
@@ -341,7 +343,8 @@ fun reduce t f e1 e2 s a =
 fun transpose e = Op_e("transp", [e])
 fun transpose2 e1 e2 = Op_e("transp2", [e1,e2])
 fun reverse e = Op_e("reverse", [e])
-
+fun catenate_first e1 e2 =
+    catenate (transpose e1) (transpose e2) >>= (ret o transpose)
 fun lett _ e = 
     let val v = newVar()
         val t = typeOf e
@@ -353,6 +356,8 @@ fun letm _ e =
         val t = typeOf e
     in fn f => Let_e(v,t,e,f(Var(v,t)))
     end
+
+val letm_asgn = letm
 
 fun prOpr t opr =
     case (opr       , unSi t   , unVi t   , unSh t   ) of

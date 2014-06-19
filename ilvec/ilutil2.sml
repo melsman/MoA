@@ -107,6 +107,10 @@ structure ILUtil : ILUTIL = struct
         (case eval E e1 of
            IntV n => ArrV(Vector.tabulate(n,fn _ => ref NONE))
          | _ => die "eval.Alloc.expecting integer")
+      | Vect (t,es) =>
+        let val vs = List.map (ref o SOME o eval E) es
+        in ArrV (Vector.fromList vs)
+        end
       | If(e0,e1,e2) =>
         (case eval E e0 of
            BoolV b => eval E (if b then e1 else e2)
@@ -195,11 +199,17 @@ structure ILUtil : ILUTIL = struct
         let val t' = Type.vecElem t
         in %"(" %% pp_t t %% %")malloc(sizeof(" %% pp_t t' %% %")*" %% pp e1 %% %")"
         end
+      | Vect (t,es) => 
+        let val t' = Type.vecElem t
+        in %"{" %% pp_es ", " es %% %"}"
+        end
       | Subs(n,e1) => %(Name.pr n) %% spar(pp e1)
       | T => %(Bool.toString true)
       | F => %(Bool.toString false)
       | If(e0,e1,e2) => par(pp e0 %%  %" ? " %% pp e1 %% %" : " %% pp e2)
-
+  and pp_es s nil = % ""
+    | pp_es s [e] = pp e
+    | pp_es s (e::es) = pp e %% %s %% pp_es s es 
   fun ppSS0 ss =
       case ss of
         nil => %""
@@ -222,6 +232,10 @@ structure ILUtil : ILUTIL = struct
                              %> (ppSS0 ss2) %% %$ %%
                           %"}"
       | Assign (n,e) => %(Name.pr n) %% %" = " %% pp e %% %";"
+      | Decl (n,SOME(e as Vect(t,es))) =>
+        let val t = Type.vecElem t
+        in pp_t t %% %" " %% %(Name.pr n) %% %"[] = " %% pp e %% %";"
+        end
       | Decl (n,SOME e) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %" = " %% pp e %% %";"
       | Decl (n,NONE) => pp_t (Name.typeOf n) %% %" " %% %(Name.pr n) %% %";"
       | AssignArr (n,i,e) => %(Name.pr n) %% spar(pp i) %% %" = " %% pp e %% %";"
@@ -278,7 +292,8 @@ structure ILUtil : ILUTIL = struct
         let val t = typeExp e
             val tv = Name.typeOf n
         in if t <> Type.Int then
-             die "TypeExp.Error.Subs: Expecting index expression of type int"
+             die ("TypeExp.Error.Subs: Expecting index expression of type int; got type "
+                  ^ Type.prType t)
            else Type.vecElem tv
         end
       | Alloc(t,e0) =>
@@ -286,6 +301,11 @@ structure ILUtil : ILUTIL = struct
         in if t0 <> Type.Int then
              die "TypeExp.Error.Alloc: Expecting count expression of type int"
            else t
+        end
+      | Vect(t,es) =>
+        let val ts = List.map typeExp es
+        in if List.all (fn t => t = Type.Int) ts then        t
+           else die "TypeExp.Error.Vect: Expecting expressions of type int"
         end
       | Binop(binop,e1,e2) => resTypeBinop binop
       | Unop(unop,e) => resTypeUnop unop

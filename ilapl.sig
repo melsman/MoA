@@ -45,6 +45,7 @@ signature ILAPL = sig
   val mif     : BOOL * 'a m * 'a m -> 'a m
   val lett    : 'a T -> 'a t -> 'a t M
   val letm    : 'a T -> 'a m -> 'a m M
+  val letm_asgn : 'a T -> 'a m -> 'a m M
 
 (*
   val out     : 'c T -> ('a t * 'b t -> 'c t) -> 'a m -> 'b m -> 'c m M
@@ -55,6 +56,7 @@ signature ILAPL = sig
   val scan    : 'a T -> 'b T -> ('a t * 'b t -> 'a t) -> 'a t -> 'b m -> 'a m M
 
   val catenate : 'a m -> 'a m -> 'a m M
+  val catenate_first : 'a m -> 'a m -> 'a m M
 
   val take    : INT -> 'a m -> 'a m
   val drop    : INT -> 'a m -> 'a m

@@ -42,6 +42,7 @@ datatype Exp =
        | If of Exp * Exp * Exp
        | Subs of Name.t * Exp
        | Alloc of Type * Exp
+       | Vect of Type * Exp list
        | Binop of Binop * Exp * Exp
        | Unop of Unop * Exp
                 
@@ -72,10 +73,13 @@ fun eq(e1,e2) =
     | (If(a1,a2,a3), If(b1,b2,b3)) => eq(a1,b1) andalso eq(a2,b2) andalso eq(a3,b3)
     | (Subs(n1,a),Subs(n2,b)) => n1=n2 andalso eq(a,b)
     | (Alloc(t1,a),Alloc(t2,b)) => t1 = t2 andalso eq(a,b)
+    | (Vect(t1,a),Vect(t2,b)) => t1 = t2 andalso eqs(a,b)
     | (Binop(p1,a1,a2),Binop(p2,b1,b2)) => p1=p2 andalso eq(a1,b1) andalso eq(a2,b2)
     | (Unop(p1,a1),Unop(p2,b1)) => p1=p2 andalso eq(a1,b1)
     | _ => false
-
+and eqs (nil,nil) = true
+  | eqs (x::xs,y::ys) = eq(x,y) andalso eqs(xs,ys)
+  | eqs _ = false
 fun eq_s(s1,s2) =
     case (s1, s2) of
       (For (e1,f1), For(e2,f2)) => false
@@ -129,6 +133,7 @@ signature PROGRAM = sig
   val $     : Name.t -> e
   val Subs  : Name.t * e -> e
   val Alloc : 'a Type.T * e -> e
+  val Vect  : 'a Type.T * e list -> e
   val I     : int -> e
   val D     : real -> e
   val B     : bool -> e
@@ -177,6 +182,8 @@ signature PROGRAM = sig
   (* remove unused declarations *)
   val rm_decls : e -> ss -> ss
   val rm_decls0 : ss -> ss
+
+  val simpleIdx : Name.t -> e -> bool
 end
 
 structure Program : PROGRAM = struct
@@ -192,10 +199,16 @@ in
        | T => true
        | F => true
        | If(e0,e1,e2) => closed e0 andalso closed e1 andalso closed e2
-       | Subs (_,e) => closed e
+       | Subs _ => false
        | Alloc (_,e) => closed e
+       | Vect (_,es) => List.all closed es
        | Binop(_,e1,e2) => closed e1 andalso closed e2
        | Unop(_,e) => closed e
+
+  fun simpleIdx v e =
+      case e of
+          Subs(_,Var n) => n = v
+        | _ => false
 
   structure N = NameSet
   fun uses e acc =
@@ -206,8 +219,10 @@ in
        | T => acc
        | F => acc
        | If(e0,e1,e2) => uses e0 (uses e1 (uses e2 acc))
-       | Subs (_,e) => uses e acc
+       | Subs (n,e) => uses e (N.insert (acc,n))
        | Alloc (_,e) => uses e acc
+       | Vect (_,nil) => acc
+       | Vect (t,e::es) => uses (Vect(t,es)) (uses e acc)
        | Binop(_,e1,e2) => uses e1 (uses e2 acc)
        | Unop(_,e) => uses e acc
 
@@ -473,6 +488,7 @@ in
 end
 fun Subs(n,e) = IL.Subs(n,e)
 val Alloc = IL.Alloc
+val Vect = IL.Vect
 
 val T = IL.T
 val F = IL.F
@@ -651,6 +667,7 @@ fun se_e (E:env) (e:e) : e =
     | IL.If(e0,e1,e2) => If(se_e E e0, se_e E e1, se_e E e2)
     | IL.Subs(n,e) => Subs(n,se_e E e)
     | IL.Alloc(t,e) => Alloc(t,se_e E e)
+    | IL.Vect(t,es) => Vect(t,List.map (se_e E) es)
     | IL.Binop(IL.Add,e1,e2) => (se_e E e1) + (se_e E e2)
     | IL.Binop(IL.Sub,e1,e2) => (se_e E e1) - (se_e E e2)
     | IL.Binop(IL.Mul,e1,e2) => (se_e E e1) * (se_e E e2)

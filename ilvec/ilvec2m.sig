@@ -30,6 +30,7 @@ signature ILBASE = sig
   val i2d      : INT -> DOUBLE
   val If       : BOOL * 'a t * 'a t -> 'a t
   val fromList : 'a T -> 'a t list -> 'a v
+  val fromListM : 'a T -> 'a t list -> 'a v M
 
   (* Compiled Programs *)
   type ('a,'b) prog

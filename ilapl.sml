@@ -172,7 +172,7 @@ fun scan _ _ g e t =
     | NONE => die "scan: expecting moa array"
 
 fun pad1 s = If(length s == I 0, single Int (I 1), s) 
-fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
+fun catenate_first (t1 : 'a m) (t2: 'a m) : 'a m M =
     case (unMV t1, unMV t2) of
       (SOME (s1,d1), SOME (s2,d2)) =>
       let val s1 = pad1 s1
@@ -187,7 +187,7 @@ fun catenate (t1 : 'a m) (t2: 'a m) : 'a m M =
       in ret mv (*Shape.eq s1' s2' >>= (fn shapeeq =>
           ret(mif(shapeeq,mv,zildeOf t1)))*)
       end
-    | _ => die "catenate: expecting moa arrays"
+    | _ => die "catenate_first: expecting moa arrays"
 
 fun take0 n (t : 'a m) : 'a m = vec(tk n (snd t))
 fun drop0 n (t : 'a m) : 'a m = vec(dr n (snd t))
@@ -224,6 +224,8 @@ fun transpose t =
 
 fun transpose2 _ = raise Fail "ilapl.transpose2: not implemented"
 fun reverse _ = raise Fail "ilapl.reverse: not implemented"
+
+fun catenate t1 t2 = catenate_first (transpose t1) (transpose t2) >>= (ret o transpose)
 
 fun eOfT t =
     case unE t of
@@ -294,5 +296,6 @@ fun prod _ f g e m1 m2 scalar array =
     
 fun lett _ = ret
 fun letm _ = ret
+fun letm_asgn _ = mem
 
 end

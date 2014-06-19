@@ -280,16 +280,29 @@ fun If (x0,a1,a2) =
 
 fun LetI v f = f v
 
+fun simple f =
+    let open P 
+        val tyv = Type.Vec Int
+        val v = Name.new tyv
+        val (e,ssT) = f ($ v)
+        val e = case unE e of SOME e => e 
+                            | NONE => die "simple: expecting expression"
+    in case ssT nil of
+           nil => simpleIdx v e
+         | _ => false
+    end
+
 fun memoize t =
     case unV t of
       SOME (ty,n,f) =>
-      let open P
-          val tyv = Type.Vec ty
-          val name = Name.new tyv
-          fun ssT ss = Decl(name, SOME(Alloc(tyv,n))) ::
-                       (For(n, fn i => runM0(f i)(fn v => (name,i) ::= v)) ss)
-      in (V(ty,n, fn i => ret(E(Subs(name,i)))), ssT)
-      end
+      if simple f then ret t
+      else let open P
+               val tyv = Type.Vec ty
+               val name = Name.new tyv
+               fun ssT ss = Decl(name, SOME(Alloc(tyv,n))) ::
+                            (For(n, fn i => runM0(f i)(fn v => (name,i) ::= v)) ss)
+           in (V(ty,n, fn i => ret(E(Subs(name,i)))), ssT)
+           end
     | _ => die "memoize: expecting vector"
            
 fun For'(n,e,body) =
@@ -371,6 +384,21 @@ fun concat v1 v2 =
   fun fromList ty nil = empty Int
     | fromList ty [t] = single ty t
     | fromList ty (t::ts) = concat (single ty t) (fromList ty ts)
+
+  fun fromListM ty nil = ret(empty Int)
+    | fromListM ty [t] = ret(single ty t)
+    | fromListM ty ts =
+      let open P
+          val tyv = Type.Vec ty
+          val name = Name.new tyv
+          val sz = I(List.length ts)
+          val ts = List.map (fn e => case unE e of
+                                         SOME t => t
+                                       | NONE => die "fromListM: expecting expressions") ts
+          fun ssT ss = Decl(name, SOME(Vect(tyv,ts))) :: ss
+      in (V(ty,sz, fn i => ret(E(Subs(name,i)))), ssT)
+      end
+
 
   fun assert_vector s v =
       case unV v of
