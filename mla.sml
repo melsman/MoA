@@ -232,7 +232,6 @@ fun fromListM t x = ret(fromList t x)
 type ('a,'b) prog = exp
 fun runM _ m = m (fn x => x)
 fun runF _ f = f (Var("arg",TyVar())) (fn x => x)
-fun outprog outfile e = raise Fail "outprog:unimplemented"
  
 (* Values and Evaluation *)
 type 'a V = Exp.value
@@ -425,6 +424,15 @@ fun pp_exp e =
 
 val pp_prog = pp_exp
 val ppV = Exp.pr_value
+
+fun outprog ofile p =
+    let val body = pp_prog p
+        val os = TextIO.openOut ofile
+        fun outln s = TextIO.output (os, s^"\n")
+    in outln body
+     ; TextIO.closeOut os
+     ; print ("Wrote file " ^ ofile ^ "\n")
+    end
 
 fun eval p v =
     let val () = print ("Untyped program:\n" ^ pp_prog p ^ "\n")
