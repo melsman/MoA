@@ -230,7 +230,6 @@ fun fromListM t x = ret(fromList t x)
 
 (* Compiled Programs *)
 type ('a,'b) prog = exp
-fun runM _ m = m (fn x => x)
 fun runF _ f = f (Var("arg",TyVar())) (fn x => x)
  
 (* Values and Evaluation *)
@@ -434,18 +433,25 @@ fun outprog ofile p =
      ; print ("Wrote file " ^ ofile ^ "\n")
     end
 
-fun eval p v =
-    let val () = print ("Untyped program:\n" ^ pp_prog p ^ "\n")
-        val () = print ("Typing the program...\n")
+fun runM verbose_p tt m = 
+    let val p = m (fn x => x)
+        fun prln f =
+            if verbose_p then (print (f()); print "\n")
+            else ()
+        val () = prln (fn() => "Untyped program:\n" ^ pp_prog p)
+        val () = prln (fn() => "Typing the program...")
     in case typeExp empEnv p of
            ERR s => raise Fail ("***Type error: " ^ s)
-         | OK t => (print ("  Program has type: " ^ prType t ^ "\n");
-                    print ("Typed program:\n" ^ pp_prog p ^ "\n");
-                    print ("Evaluating program\n");
-                    let val de = Exp.addDE Exp.empDEnv "arg" v
-                        val v' = Exp.eval de p
-                    in v'
-                    end)
+         | OK t => (prln (fn() => "  Program has type: " ^ prType t);   (* perhaps unify tt with t!! *)
+                    prln (fn() => "Typed program:\n" ^ pp_prog p);
+                    p)
+    end
+
+fun eval p v =
+    let val () = print ("Evaluating program\n")
+        val de = Exp.addDE Exp.empDEnv "arg" v
+        val v' = Exp.eval de p
+    in v'
     end
     
 end

@@ -28,7 +28,7 @@ fun ret v = (v, fn ss => ss)
 fun runM0 (e,ssT) k =
     case unE e of
       SOME e => ssT [k e]
-    | NONE => die "runM: expecting expression"
+    | NONE => die "runM0: expecting expression"
 
 type 'a NUM  = 'a Num t
 type INT     = Int NUM
@@ -214,10 +214,10 @@ fun runF (ta,tb) (f: 'a t -> 'b t M) =
         let val (e,ssT) = f (E(IL.Var n0))
         in case unE e of
              SOME e => ssT [k e]
-           | NONE => die "runM: expecting expression"
+           | NONE => die "runF: expecting expression"
         end)
 
-fun runM ta (e,ssT) =
+fun runM _ ta (e,ssT) =
   (Type.Int,
    ta,
    fn (_,k) => runM0 (e,ssT) k)

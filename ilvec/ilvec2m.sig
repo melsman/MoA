@@ -34,7 +34,7 @@ signature ILBASE = sig
 
   (* Compiled Programs *)
   type ('a,'b) prog
-  val runM     : 'b T -> 'b t M -> (unit,'b) prog
+  val runM     : bool -> 'b T -> 'b t M -> (unit,'b) prog   (* bool: verbose_p *)
   val runF     : 'a T * 'b T -> ('a t -> 'b t M) -> ('a,'b) prog
   val outprog  : string -> ('a,'b)prog -> unit
  
