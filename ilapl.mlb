@@ -7,5 +7,7 @@ in
    ilapl.sml
    apl.mlb
    exp.sml
-   mla.sml
+   local kitlib/finmap.mlb
+   in mla.sml
+   end
 end

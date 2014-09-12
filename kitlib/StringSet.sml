@@ -1,7 +1,4 @@
-structure StringOrder : ORDER =
-struct
-type t = string
-val compare = String.compare
-end
 
-structure StringSet = OrderSet(StringOrder)
+structure StringSet = OrderSet(struct type t = string
+                                      open String
+                               end)

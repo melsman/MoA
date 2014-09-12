@@ -1,4 +1,5 @@
 local $(SML_LIB)/basis/basis.mlb
+      basics.mlb
 in
    MONO_SET.sml
    IntSetImpl.sml

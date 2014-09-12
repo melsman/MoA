@@ -357,6 +357,68 @@ fun letm _ e =
 
 val letm_asgn = letm
 
+(* Optimization *)
+
+
+structure M = StringFinMap
+structure Optimize = struct
+
+type def = {shape: Exp.exp option, value: Exp.exp option}
+type env = def M.map
+
+fun getShape (E:env) (e : Exp.exp) : Exp.exp option =
+    case e of
+        Op("reshape",[sh,e],_) => SOME sh
+      | Var(v,_) => (case M.lookup E v of
+                         SOME{shape=SOME sh,...} => SOME sh
+                       | _ => NONE)
+      | _ => NONE
+
+fun optimize optlevel e =
+    if Int.<= (optlevel, 0) then e
+    else
+    let 
+      fun add E k v = E
+      fun opt E e =
+            case e of
+                Var (v,_) => e
+              | I i => e
+              | D r => e
+              | B b => e
+              | Iff (c,e1,e2,t) => Iff(opt E c,opt E e1,opt E e2,t)
+              | Vc(es,t) => Vc (opts E es,t)
+              | Op(opr,es,t) =>
+                (case (opr, opts E es) of
+                     ("addi", [I 0,e]) => e
+                   | ("addi", [e,I 0]) => e
+                   | ("addi", [I i1,I i2]) => I(Int.+(i1,i2))
+                   | ("negi", [I i]) => I(Int.~ i)
+                   | ("i2d", [I i]) => D(real i)
+                   | ("reduce", [f,n,Op("zilde",[],_)]) => n
+                   | ("shape", [e]) => 
+                     (case getShape E e of
+                          SOME e => e
+                        | NONE => Op(opr,[e],t))
+                   | (_,es) => Op(opr,es,t))
+              | Let (v,ty,e1,e2,t) => 
+                let val e1 = opt E e1
+                    val sh = getShape E e1
+                    val E' = M.add(v,{shape=sh,value=NONE},E)
+                    val e2 = opt E' e2
+                in Let(v,ty,e1,e2,t)
+                end
+              | Fn (v,t,e,t') => 
+                let val E' = M.add(v,{shape=NONE,value=NONE},E)
+                in Fn(v,t,opt E' e,t')
+                end
+      and opts E es = List.map (opt E) es
+      val initE = M.empty
+    in opt initE e
+    end
+end
+
+(* Pretty printing *)
+
 fun prOpr t opr =
     case (opr       , unSi t   , unVi t   , unSh t   ) of
          ("first"   , SOME _   , _        , _        ) => opr ^ "Sh"
@@ -433,18 +495,21 @@ fun outprog ofile p =
      ; print ("Wrote file " ^ ofile ^ "\n")
     end
 
-fun runM verbose_p tt m = 
+fun runM {verbose,optlevel} tt m = 
     let val p = m (fn x => x)
         fun prln f =
-            if verbose_p then (print (f()); print "\n")
+            if verbose then (print (f()); print "\n")
             else ()
         val () = prln (fn() => "Untyped program:\n" ^ pp_prog p)
         val () = prln (fn() => "Typing the program...")
-    in case typeExp empEnv p of
-           ERR s => raise Fail ("***Type error: " ^ s)
-         | OK t => (prln (fn() => "  Program has type: " ^ prType t);   (* perhaps unify tt with t!! *)
-                    prln (fn() => "Typed program:\n" ^ pp_prog p);
-                    p)
+        val p = case typeExp empEnv p of
+                    ERR s => raise Fail ("***Type error: " ^ s)
+                  | OK t => (prln (fn() => "  Program has type: " ^ prType t);   (* perhaps unify tt with t!! *)
+                             prln (fn() => "Typed program:\n" ^ pp_prog p);
+                             p)
+        val p = Optimize.optimize optlevel p
+        val () = prln (fn() => "Optimised program:\n" ^ pp_prog p)
+    in p
     end
 
 fun eval p v =

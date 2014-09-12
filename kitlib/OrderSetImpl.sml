@@ -1,11 +1,5 @@
 (* Finite sets using balanced AVL trees *)
 
-signature ORDER =
-    sig
-	type t
-	val compare : t * t -> order
-    end
-
 signature ORDER_SET_IMPL =
     sig
 	include MONO_SET
