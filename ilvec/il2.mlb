@@ -1,6 +1,6 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   ../kitlib/set.mlb
+   $(SMACKAGE)/kitlib/v1/set/set.mlb
 in
    type.sig
    il2.sml

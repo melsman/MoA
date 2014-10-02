@@ -1,6 +1,6 @@
 
 #MLCOMP=mlkit
-MLCOMP=mlton
+MLCOMP=mlton -mlb-path-map $(HOME)/.mlton/mlb-path-map
 
 UTEST_FILES=utest/utest.sig utest/utest.sml utest/utest.mlb
 VEC_FILES=vec/vec.sig vec/fvec.sml vec/list_vec.sml vec/ppvec.sml vec/vec.mlb vec/test_vec.sml

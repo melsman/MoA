@@ -1,0 +1,5 @@
+description: Functional multi-dimensional array libraries
+maintainer: Martin Elsman <mael@di.ku.dk>
+keywords: APL, multi-dimensional arrays
+license: MIT License
+requires: kitlib v1 (v1.0.2)

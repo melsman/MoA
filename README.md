@@ -99,7 +99,7 @@ for (int n52 = 0; n52 < 10; n52++) {
 After executing the above code, the result is present in variable
 `n49`.
 
-The `il2m.mlb` implementation further extend the simpler solution with
+The `il2m.mlb` implementation further extends the simpler solution with
 an implementation of pull-arrays that maps indexes to expression
 monads, so as to support simple implementations of
 matrix-multiplication and nested reductions along different axes of a

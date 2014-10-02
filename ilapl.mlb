@@ -1,13 +1,13 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   uref.mlb
+   $(SMACKAGE)/kitlib/v1/uref/uref.mlb
 in
    ilvec/il2m.mlb
    ilapl.sig
    ilapl.sml
    apl.mlb
    exp.sml
-   local kitlib/finmap.mlb
+   local $(SMACKAGE)/kitlib/v1/finmap/finmap.mlb
    in mla.sml
    end
 end

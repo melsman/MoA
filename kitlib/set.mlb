@@ -1,8 +1,0 @@
-local $(SML_LIB)/basis/basis.mlb
-      basics.mlb
-      set_impl.mlb
-in IntSet.sml
-   NatSet.sml
-   OrderSet.sml
-   StringSet.sml
-end
