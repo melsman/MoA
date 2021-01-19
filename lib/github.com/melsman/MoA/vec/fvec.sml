@@ -6,7 +6,7 @@ type 'a t = int * (int -> 'a)
 
 fun fromList (l:'a list) :  'a t =
     let val a = Vector.fromList l
-    in (Vector.length a, fn i => Unsafe.Vector.sub(a,i))
+    in (Vector.length a, fn i => Vector.sub(a,i))
     end
 
 fun map f (n,g) = (n, f o g)
@@ -37,7 +37,7 @@ fun foldr f e (n,g) = iter'(n,e, fn (i,a) => f(g i,a))
 fun emp _ = raise Fail "impossible"
 fun empty () = (0, emp)
 
-fun tk n (a as (m,g)) = 
+fun tk n (a as (m,g)) =
     if n >= m then a
     else (n,g)
 
@@ -48,7 +48,7 @@ fun dr n (m,g) =
 fun tabulate n f = (n,f)
 
 fun list a = foldr (op ::) nil a
-	
+
 fun length (n,_) = n
 
 fun map2 f (n1,f1) (n2,f2) =
@@ -59,7 +59,7 @@ fun single x = fromList [x]
 
 fun eq beq (a1,a2) =
     length a1 = length a2 andalso
-    (foldl(fn (x,a) => x andalso a) true 
+    (foldl(fn (x,a) => x andalso a) true
 	  (map2 (fn x => fn y => beq(x,y)) a1 a2))
 
 fun concat (n1,f1) (n2,f2) =
@@ -78,6 +78,6 @@ fun sub ((n,f),i) =
 
 fun memoize (n,f) =
     let val v = Vector.tabulate(n,f)
-    in (n, fn i => Unsafe.Vector.sub(v,i))
+    in (n, fn i => Vector.sub(v,i))
     end
 end

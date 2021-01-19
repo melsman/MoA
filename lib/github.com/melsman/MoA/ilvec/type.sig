@@ -3,7 +3,7 @@ signature TYPE = sig
      and Bool                       (* booleans *)
      and 'a Vec                     (* vectors *)
 
-  eqtype 'a T                       (* Type constructors *)
+  type 'a T                         (* Type constructors *)
   val Int      : Int Num T
   val Double   : Double Num T
   val Bool     : Bool T

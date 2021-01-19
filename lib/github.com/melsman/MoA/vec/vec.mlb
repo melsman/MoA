@@ -1,6 +1,6 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   $(SML_LIB)/basis/unsafe.mlb
+(* $(SML_LIB)/basis/unsafe.mlb *)
 in
    vec.sig
    list_vec.sml

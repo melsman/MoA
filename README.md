@@ -1,34 +1,85 @@
-## Vectors and Multi-dimensional Arrays
+# MoA [![CI](https://github.com/melsman/MoA/workflows/CI/badge.svg)](https://github.com/melsman/MoA/actions)
 
-This software provides implementations of a series of vector and array
-modules in Standard ML.
+Standard ML library for Vectors and Multi-dimensional Arrays.
 
- * `vec.mlb`. Implementation of one-dimensional vectors. Several
-   implementations are included, including a version based on pull and
-   push arrays.
+## Overview of MLB files
 
- * `ilvec/il.mlb`. Implementation of code-generational one-dimensional
-   pull arrays of type `INT * (INT -> Exp)`.
+* `lib/github.com/melsman/MoA/vec/vec.mlb`:
 
- * `ilvec/il2m.mlb`. Implementation of code-generational one-dimensional
-   pull arrays of type `INT * (INT -> Exp M)`. Support for nested 
-   operations on vectors.
+  Implementation of one-dimensional vectors. Several implementations
+  are included, including a version based on pull and push arrays.
 
- * `moa.mlb`. Implementation of multi-dimensional array
-   calculus. Makes use of `vec.mlb`.
+  - **signature** [`VEC`](lib/github.com/melsman/MoA/vec/vec.sig)
+  - **structure** `ListVec : VEC`
+  - **structure** `Fvec : VEC`
+  - **structure** `PPvec : VEC`
 
- * `ilmoa.mlb`. Implementation of code-generational
-   multi-dimensional array calculus. Makes use of `ilvec/il.mlb`.
+* `lib/github.com/melsman/MoA/ilvec/il.mlb`:
 
- * `ilapl.mlb`. Implementation of code-generational
-   multi-dimensional array calculus with APL semantics. Makes use 
-   of `il2m.mlb`.
+  Implementation of code-generational one-dimensional pull arrays of
+  type `INT * (INT -> Exp)`.
+
+  - **signature** [`ILVEC`](lib/github.com/melsman/MoA/ilvec/ilvec.sig)
+  - **structure** `Type : Type`
+  - **structure** `Exp : EXP`
+  - **structure** `Program : PROGRAM`
+
+
+* `lib/github.com/melsman/MoA/ilvec/il2m.mlb`:
+
+  Implementation of code-generational one-dimensional pull arrays of
+  type `INT * (INT -> Exp M)`. Support for nested operations on
+  vectors.
+
+* `lib/github.com/melsman/MoA/moa.mlb`:
+
+  Implementation of multi-dimensional array calculus. Makes use of
+  `vec.mlb`.
+
+* `lib/github.com/melsman/MoA/ilmoa.mlb`:
+
+  Implementation of code-generational multi-dimensional array
+  calculus. Makes use of `ilvec/il.mlb`.
+
+* `lib/github.com/melsman/MoA/ilapl.mlb`:
+
+  Implementation of code-generational multi-dimensional array calculus
+  with APL semantics. Makes use of `il2m.mlb`.
 
 The "il" versions of the vector and array libraries are
 implementations that generate residual intermediate language "C like"
 code from the specification of the vector or array program. Contrary,
 the non-"il" versions of the libraries are implementations for which
-the vector and array operations are performed in ML itself. 
+the vector and array operations are performed in ML itself.
+
+## Use of the package
+
+This library is set up to work well with the SML package manager
+[smlpkg](https://github.com/diku-dk/smlpkg).  To use the package, in
+the root of your project directory, execute the command:
+
+```
+$ smlpkg add github.com/melsman/MoA
+```
+
+This command will add a _requirement_ (a line) to the `sml.pkg` file in your
+project directory (and create the file, if there is no file `sml.pkg`
+already).
+
+To download the library into the directory
+`lib/github.com/melsman/MoA`, execute the command:
+
+```
+$ smlpkg sync
+```
+
+You can now reference the `mlb`-file using relative paths from within
+your project's `mlb`-files.
+
+Notice that you can choose either to treat the downloaded package as
+part of your own project sources (vendoring) or you can add the
+`sml.pkg` file to your project sources and make the `smlpkg sync`
+command part of your build process.
 
 ## One-dimensional vector implementations
 
@@ -58,7 +109,7 @@ the small multiplification table:
 ```sml
 val mat = tabulate (I 10) (fn i => tabulate (I 10) (fn j => i * j))
 ```
-                                   
+
 Here the `I` function lifts integers into the vector expression
 language, on which all calculations are performed. The lifting allows
 operations on vector expressions to be residualized into the C-like
@@ -124,7 +175,7 @@ following signal processing program:
 
 ```sml
 fun diff (signal (*:n*)) (*:n-1*) =
-    rrotate (I 1) signal >>= (fn r => 
+    rrotate (I 1) signal >>= (fn r =>
       sum Double (op -) signal r >>= (fn (r' (*:n*)) =>
       ret (drop (I 1) r')))
 fun maxsv s v = mmap (fn x => max x s) v   (* scalar-vector max *)
@@ -134,7 +185,7 @@ fun addsv s v = mmap (fn x => x + s) v     (* scalar-vector addition *)
 fun divv v1 v2 = sum Double (op /) v1 v2   (* element-wise vector division *)
 fun signal (SIG (*:n*)) =
     catenate (scl (D 0.0)) SIG >>= (fn (c (*:n+1*)) =>
-    diff c >>= (fn (v (*:n*)) => 
+    diff c >>= (fn (v (*:n*)) =>
     divv v (addsv (D 0.01) SIG) >>= (fn tmp =>
     ret(maxsv (D ~50.0) (minsv (D 50.0) (prodsv (D 50.0) tmp))))))
 ```

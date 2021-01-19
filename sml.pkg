@@ -1,0 +1,6 @@
+package github.com/melsman/MoA
+
+require {
+  github.com/diku-dk/sml-setmap 0.1.0 #d6928504c924388de753c12a8d4f2fda32cecddb
+  github.com/diku-dk/sml-uref 0.0.0-20210119222918+bfce9ac7ce2e98abf02036ee33d78cae105a1d70
+}

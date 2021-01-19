@@ -14,13 +14,13 @@ withtype rnk = r uref
 datatype b = IntT
            | DoubleT
            | BoolT
-           | Bv of bv 
+           | Bv of bv
 withtype bty = b uref
 datatype t = ShT of rnk
            | SiT of rnk
            | ViT of rnk
            | ArrT of bty * rnk
-           | FunT of typ * typ 
+           | FunT of typ * typ
            | TyvT of tv
 withtype typ = t uref
 
@@ -99,7 +99,7 @@ and combT (t1,t2) =
     case (t1,t2) of
         (TyvT _, _) => t2
       | (_, TyvT _) => t1
-      | (t as ArrT (b1,r1), ArrT (b2,r2)) => (unifB b1 b2; unifR r1 r2; t) 
+      | (t as ArrT (b1,r1), ArrT (b2,r2)) => (unifB b1 b2; unifR r1 r2; t)
       | (t as FunT (t1,t2), FunT (t1',t2')) => (unif t1 t1'; unif t2 t2'; t)
       | (ShT r1, ShT r2) => (unifR r1 r2; t1)
       | (SiT r1, SiT r2) => (unifR r1 r2; t1)
@@ -135,7 +135,7 @@ fun subtype t1 t2 =
         SOME r1 => (case unSi t2 of
                         SOME r2 => unifyR r1 r2
                       | NONE => unify t2 Int)
-      | NONE => 
+      | NONE =>
         case unVi t1 of
             SOME r1 => (case unVi t2 of
                             SOME r2 => unifyR r1 r2
@@ -148,7 +148,7 @@ fun subtype t1 t2 =
                                 SOME r2 => unifyR r1 r2
                               | NONE => unify t2 (Vec Int))
               | NONE => unify t1 t2
-end            
+end
 
 structure Exp = Exp(Ty)
 open Ty
@@ -163,7 +163,7 @@ fun vecElem t = raise Fail "vecElem"
 (*
     case unArr t of
         SOME (t,r) => (unifr r rnk1; t)
-      | NONE => raise Fail "vecElem: impossible" 
+      | NONE => raise Fail "vecElem: impossible"
 *)
 fun vecLength e =
     case e of
@@ -217,9 +217,9 @@ type 'a NUM = exp
 type INT = exp
 type DOUBLE = exp
 type BOOL = exp
-                
+
 type 'a M = ('a -> exp) -> exp
-                               
+
 fun ret (v:'a) : 'a M = fn k => k v
 
 infix >>=
@@ -231,7 +231,7 @@ fun fromListM t x = ret(fromList t x)
 (* Compiled Programs *)
 type ('a,'b) prog = exp
 fun runF _ f = f (Var("arg",TyVar())) (fn x => x)
- 
+
 (* Values and Evaluation *)
 type 'a V = Exp.value
 fun Iv _ = raise Fail "mla.Iv"
@@ -273,7 +273,7 @@ fun mkFn2 t1 t2 f =
 fun mkFn2m t1 t2 f = mkFn2 t1 t2 (fn a => f a (fn x=>x))
 fun bin t1 t2 s f e1 e2 =
     ret(Op_e(s,[mkFn2 t1 t2 f,e1,e2]))
-fun binm t1 t2 s f e1 e2 = 
+fun binm t1 t2 s f e1 e2 =
     bin t1 t2 s (fn a => f a (fn x => x)) e1 e2
 fun red t1 t2 f n e = binm t1 t2 "red" f n e
 fun meq t f e1 e2 = bin t t "meq" f e1 e2
@@ -281,7 +281,7 @@ fun mif (b,e1,e2) = If(b,e1,e2)
 fun sum t1 t2 _ f e1 e2 = binm t1 t2 "sum" f e1 e2
 fun scan t1 t2 f e1 e2 = bin t1 t2 "scan" f e1 e2
 fun getRank s e =
-    let fun fail s = raise Fail ("rank error: " ^ s ^ 
+    let fun fail s = raise Fail ("rank error: " ^ s ^
                                  " not supported for arguments of unknown rank")
         val t = typeOf e
     in case unSi t of
@@ -291,8 +291,8 @@ fun getRank s e =
            SOME _ => 1
          | NONE =>
        case unSh t of
-           SOME _ => 1 
-         | NONE => 
+           SOME _ => 1
+         | NONE =>
        case unArr t of
            SOME (_, r) => (case unRnk r of SOME i => i
                                          | NONE => fail s)
@@ -308,7 +308,7 @@ fun catenate e1 e2 =
          | (r1, r2) => if r2=r1+1 then cons()
                        else if r1=r2+1 then snoc()
                        else if r1=r2 then cat()
-                       else raise Fail ("rank error: incompatible argument ranks for catenate: " 
+                       else raise Fail ("rank error: incompatible argument ranks for catenate: "
                                         ^ Int.toString r1 ^ " and " ^ Int.toString r2)
     end
 fun abs i = let open Int
@@ -335,7 +335,7 @@ fun reduce t f e1 e2 s a =
     let open Int
     in case getRank "reduce" e2 of
            0 => ret(s e2)
-         | r => binm t t "reduce" f e1 e2 >>= 
+         | r => binm t t "reduce" f e1 e2 >>=
                      (fn e => ret(if r=1 then s e else a e))
     end
 fun transpose e = Op_e("transp", [e])
@@ -343,7 +343,7 @@ fun transpose2 e1 e2 = Op_e("transp2", [e1,e2])
 fun reverse e = Op_e("reverse", [e])
 fun catenate_first e1 e2 =
     catenate (transpose e1) (transpose e2) >>= (ret o transpose)
-fun lett _ e = 
+fun lett _ e =
     let val v = newVar()
         val t = typeOf e
     in fn f => Let_e(v,t,e,f(Var(v,t)))
@@ -360,7 +360,7 @@ val letm_asgn = letm
 (* Optimization *)
 
 
-structure M = StringFinMap
+structure M = StringMap
 structure Optimize = struct
 
 type def = {shape: Exp.exp option, value: Exp.exp option}
@@ -377,7 +377,7 @@ fun getShape (E:env) (e : Exp.exp) : Exp.exp option =
 fun optimize optlevel e =
     if Int.<= (optlevel, 0) then e
     else
-    let 
+    let
       fun add E k v = E
       fun opt E e =
             case e of
@@ -395,19 +395,19 @@ fun optimize optlevel e =
                    | ("negi", [I i]) => I(Int.~ i)
                    | ("i2d", [I i]) => D(real i)
                    | ("reduce", [f,n,Op("zilde",[],_)]) => n
-                   | ("shape", [e]) => 
+                   | ("shape", [e]) =>
                      (case getShape E e of
                           SOME e => e
                         | NONE => Op(opr,[e],t))
                    | (_,es) => Op(opr,es,t))
-              | Let (v,ty,e1,e2,t) => 
+              | Let (v,ty,e1,e2,t) =>
                 let val e1 = opt E e1
                     val sh = getShape E e1
                     val E' = M.add(v,{shape=sh,value=NONE},E)
                     val e2 = opt E' e2
                 in Let(v,ty,e1,e2,t)
                 end
-              | Fn (v,t,e,t') => 
+              | Fn (v,t,e,t') =>
                 let val E' = M.add(v,{shape=NONE,value=NONE},E)
                 in Fn(v,t,opt E' e,t')
                 end
@@ -461,7 +461,7 @@ fun pp_exp e =
               | I i => $(Int.toString i)
               | D r => $(Real.fmt (StringCvt.FIX (SOME 2)) r)
               | B b => $(Bool.toString b)
-              | Iff (c,e1,e2,_) => 
+              | Iff (c,e1,e2,_) =>
                 let val i' = i + 2
                 in $"if " @@ pp (i+3) c @@ $" then" @@
                     indent i' @@ pp i' e1 @@
@@ -471,7 +471,7 @@ fun pp_exp e =
                 | Vc(es,_) => $"[" @@ pps (i+1) es @@ $"]"
                 | Op (opr,nil,t) => $(prOpr t opr)
                 | Op (opr,es,t) => $(prOpr t opr) @@ $"(" @@ pps (i+1+size opr) es @@ $")"
-                | Let (v,ty,e1,e2,_) => $"let " @@ $v @@ $":" @@ $(prType ty) @@ $" = " @@ pp (i+2) e1 @@ $" in" @@ 
+                | Let (v,ty,e1,e2,_) => $"let " @@ $v @@ $":" @@ $(prType ty) @@ $" = " @@ pp (i+2) e1 @@ $" in" @@
                                          indent i @@ pp i e2
                 | Fn (v,t,e,_) =>
                   (case lookForOp [v] e of
@@ -495,7 +495,7 @@ fun outprog ofile p =
      ; print ("Wrote file " ^ ofile ^ "\n")
     end
 
-fun runM {verbose,optlevel} tt m = 
+fun runM {verbose,optlevel} tt m =
     let val p = m (fn x => x)
         fun prln f =
             if verbose then (print (f()); print "\n")
@@ -518,5 +518,5 @@ fun eval p v =
         val v' = Exp.eval de p
     in v'
     end
-    
+
 end

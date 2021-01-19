@@ -1,11 +1,11 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   $(SMACKAGE)/kitlib/v1/set/set.mlb
+   ../../../diku-dk/sml-setmap/mono_set.mlb
 in
    type.sig
-   ilvec2m.sig
    il2.sml
    ilutil2.sig
    ilutil2.sml
-   ilvec2m.sml
+   ilvec2.sig
+   ilvec2.sml
 end
